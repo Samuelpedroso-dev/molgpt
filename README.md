@@ -1,29 +1,53 @@
 # MolGPT
 
-Um GPT pequeno que aprende a escrever moléculas e uma interface para explorar o que ele inventa. O modelo lê e escreve moléculas no formato SMILES, um pedaço por vez, e aceita pedidos de faixa de logP e de QED antes de gerar. A interface mostra as moléculas geradas como uma rede por similaridade, com estrutura 2D animada, modelo 3D girando e a escrita do GPT com a confiança de cada escolha.
+A small GPT that writes molecules as SMILES strings, with an interface to explore what it invents as a network of similar molecules, in 2D and in 3D. Early version 0.1, more coming.
 
-Este projeto faz parte de um estudo maior sobre usar IA para propor candidatas a medicamentos. O que existe aqui é a etapa de geração. Ele não sabe nada sobre alvos nem sobre afinidade, então o que sai são moléculas parecidas com fármacos e não medicamentos.
+Live demo and landing page are served from this repository on Vercel. The interface is a single offline HTML file in `interface/index.html`.
 
-## O que tem no repositório
+## What is in this repository
 
-O arquivo molgpt.py contém o código completo de dados, modelo, treino, geração e avaliação, e molgpt.ipynb é o mesmo código em notebook para rodar no Colab com GPU. A pasta modelo guarda o checkpoint do modelo pequeno treinado, a pasta resultados guarda as métricas e o registro do treino, e a pasta interface tem uma única página HTML que funciona offline e pode ser aberta direto no navegador.
+`molgpt.py` holds the full code for data, model, training, generation and evaluation. `molgpt.ipynb` is the same code as a notebook for Colab with a GPU. `model/molgpt.pt` is the checkpoint of the small model. `results/` keeps the metrics and the training log. `interface/index.html` is the explorer, and `index.html` at the root is the landing page.
 
-## Resultados do modelo pequeno
+## The small model
 
-O modelo tem 0,8 milhão de parâmetros, 4 camadas e foi treinado por 2600 rodadas no ZINC250k, em cerca de 28 minutos numa CPU de 2 núcleos. A perda final ficou em 0,77 no treino e na validação, o que indica que ele aprendeu sem decorar.
+The model has 0.81 million parameters, 4 layers, 4 heads and an embedding size of 128. It was trained for 2600 steps on ZINC250k, in about 28 minutes on a 2 core CPU. The final loss was about 0.77 on both training and validation, so it learned without memorizing.
 
-Foram geradas 4000 moléculas e comparadas com uma amostra real do ZINC250k, medidas com o RDKit. A validade ficou em 56 por cento, e é a parte fraca esperada para um modelo pequeno com treino curto. Entre as válidas, todas eram únicas e quase todas novas, fora do conjunto de treino. A diversidade foi de 0,88 contra 0,88 do ZINC real, o QED médio de 0,73 contra 0,74, o logP médio de 2,43 contra 2,38, 97 por cento passam na regra de Lipinski contra 99 por cento e 2 por cento têm alertas PAINS contra 3 por cento.
+The model reads a molecule as a sequence of tokens that starts with a begin marker and two control tokens, one for a logP bin and one for a QED bin. At generation time you give the control tokens and the model writes the rest. RDKit then checks every result.
 
-O controle por faixa de logP funcionou. Pedindo da faixa mais baixa para a mais alta, o logP médio das moléculas devolvidas foi de 0,75 até 4,17, subindo a cada faixa. Os números completos estão em resultados/metricas.json.
+## Results
 
-## Como rodar
+4000 molecules were generated and compared with a real ZINC250k sample, measured with RDKit.
 
-Instale as dependências com `pip install rdkit torch pandas numpy matplotlib`. Para treinar o modelo pequeno em CPU rode `python molgpt.py cpu`, que baixa o ZINC250k sozinho e leva cerca de meia hora. Para treinar a versão maior, de 5 milhões de parâmetros, rode `python molgpt.py` numa máquina com GPU ou abra molgpt.ipynb no Colab com a GPU T4 ligada, o que deve levar de 15 a 25 minutos. Essa estimativa para GPU não foi medida.
+| Measure | GPT | Real ZINC |
+|---|---|---|
+| Valid molecules | 56% | 100% |
+| Unique among valid | 100% | |
+| Diversity | 0.877 | 0.881 |
+| Mean QED | 0.730 | 0.738 |
+| Mean logP | 2.43 | 2.38 |
+| Pass Lipinski rule | 96.5% | 98.7% |
+| PAINS alerts | 2.1% | 3.1% |
 
-## Como funciona
+Validity is the weak spot, which is expected for a model this small with such short training. The control by logP bin works. Asking from the lowest bin to the highest, the mean logP of the returned molecules rose each time, from 0.75 to 4.17. Full numbers are in `results/metrics.json`.
 
-Cada molécula vira uma sequência de pedaços, chamados tokens, que começa com um marcador de início e dois marcadores de controle com a faixa de logP e de QED. O GPT aprende a prever o próximo pedaço, e na geração basta dar os marcadores de controle que ele escreve o resto. O código separa as moléculas do ZINC250k em treino e validação e usa o RDKit para checar se o que o modelo escreve é uma molécula válida.
+## Run it
 
-## Limites
+```
+pip install rdkit torch pandas numpy matplotlib
+python molgpt.py cpu     # small model, about 28 minutes on 2 CPU cores
+python molgpt.py         # full model, meant for a GPU
+```
 
-O modelo foi treinado só em moléculas do ZINC250k e não conhece proteínas, alvos nem toxicidade. A página de interface mostra moléculas e escritas gravadas desse modelo pequeno e não roda o modelo no navegador. A etapa seguinte é ligar um modelo de afinidade, treinado em Davis ou KIBA, como juiz das moléculas geradas, depois ajustar o GPT por reforço e por fim encaixar as melhores candidatas no bolso de um alvo real.
+The script downloads ZINC250k by itself. The full preset has about 5 million parameters and is meant for a GPU, for example a free Colab T4. The time estimate for GPU was not measured.
+
+## Note on the files
+
+The numbers in `results/` and the recorded writing in the interface come from the first training run. The checkpoint in `model/` comes from a second run with the same preset and seed, made after the first checkpoint was overwritten by mistake. The two runs are very close but not identical, so small differences are expected if you evaluate the checkpoint yourself.
+
+## Limits
+
+The model only knows the shape of drug like molecules from ZINC250k. It knows nothing about protein targets, binding affinity or toxicity, so what it writes are starting candidates and not drugs. The interface shows recorded molecules and recorded writing from the small model and does not run the model in the browser. The next step is an affinity model, trained on Davis or KIBA, acting as a judge for the generated molecules, followed by reinforcement fine tuning and docking of the best candidates into a real target.
+
+## License
+
+MIT, see `LICENSE`.

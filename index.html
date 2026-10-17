@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MolGPT</title>
+<meta name="description" content="A small GPT that writes molecules as SMILES strings, with an interface to explore what it invents in 2D and 3D.">
+<meta property="og:title" content="MolGPT">
+<meta property="og:description" content="A small GPT that writes molecules as SMILES strings, with an interface to explore what it invents in 2D and 3D.">
+<meta property="og:image" content="assets/network.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout, one calm column with a wide product screenshot as the hero image and quiet sections below it */
+:root{
+  --bg:#f3f5f7; --panel:#ffffff; --inset:#e9edf1; --line:#d5dce3; --fg:#14202b; --mut:#566472;
+  --accent:#0b7f95; --accent-ink:#ffffff; --hot:#a85a08; --frame:#0e1319;
+  --f-ui:'Instrument Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --f-mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#0b1016; --panel:#121920; --inset:#0f151b; --line:#232e3b; --fg:#e8eef4; --mut:#8c9aab;
+  --accent:#5cc9db; --accent-ink:#06222a; --hot:#f2b45a; --frame:#0e1319; color-scheme:dark}}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-ui);font-size:16px;line-height:1.6;
+  padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1080px;margin:0 auto}
+a{color:var(--accent)}
+nav{display:flex;align-items:center;justify-content:space-between;padding:20px 0}
+.mark{font-weight:600;letter-spacing:-.01em;font-size:18px;color:var(--fg);text-decoration:none}
+.mark span{color:var(--accent)}
+nav div{display:flex;gap:22px;font-size:14px}
+nav a{color:var(--mut);text-decoration:none}
+nav a:hover{color:var(--fg)}
+.hero{display:grid;grid-template-columns:minmax(0,1fr);gap:34px;padding:34px 0 20px}
+h1{margin:0;font-size:clamp(34px,6vw,60px);line-height:1.04;letter-spacing:-.03em;font-weight:600;max-width:16ch;text-wrap:balance}
+.lead{margin:18px 0 0;font-size:19px;color:var(--mut);max-width:58ch}
+.cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:26px}
+.btn{display:inline-block;padding:11px 20px;border-radius:9px;font-weight:500;font-size:15px;text-decoration:none;border:1px solid var(--line);color:var(--fg);background:var(--panel)}
+.btn.p{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn:hover{filter:brightness(1.08)}
+.btn:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.ver{margin-top:14px;font-size:13px;color:var(--hot)}
+.shot{margin:0;background:var(--frame);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.shot .bar{display:flex;gap:6px;padding:10px 14px;background:#0a0f14}
+.shot .bar i{width:10px;height:10px;border-radius:50%;background:#263140}
+.shot img{display:block;width:100%;height:auto}
+.shot figcaption{padding:10px 14px;font-size:13px;color:#8c9aab;background:#0a0f14}
+section{padding:54px 0 6px}
+h2{margin:0 0 10px;font-size:clamp(24px,3.6vw,34px);letter-spacing:-.02em;line-height:1.15;text-wrap:balance}
+.sub{margin:0 0 24px;color:var(--mut);max-width:62ch}
+.split{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:34px;align-items:center}
+@media (max-width:820px){.split{grid-template-columns:minmax(0,1fr)}}
+.nums{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0;border-top:1px solid var(--line)}
+.nums div{padding:16px 18px 16px 0;border-bottom:1px solid var(--line)}
+.nums b{display:block;font-size:26px;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.nums span{color:var(--mut);font-size:14px}
+ol.steps{margin:0;padding:0;list-style:none;display:grid;gap:0;counter-reset:s;max-width:760px}
+ol.steps li{counter-increment:s;display:grid;grid-template-columns:44px minmax(0,1fr);gap:6px 14px;padding:16px 0;border-top:1px solid var(--line)}
+ol.steps li::before{content:counter(s);font-family:var(--f-mono);color:var(--accent);font-size:15px;padding-top:2px}
+ol.steps b{font-weight:600}
+ol.steps span{color:var(--mut);grid-column:2}
+pre{margin:0;padding:18px 20px;background:var(--panel);border:1px solid var(--line);border-radius:12px;font:14px/1.7 var(--f-mono);overflow-x:auto}
+.note{max-width:64ch;color:var(--mut)}
+footer{margin-top:64px;padding:26px 0 40px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:10px 24px;justify-content:space-between;font-size:14px;color:var(--mut)}
+footer a{color:var(--mut)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav aria-label="Main">
+  <a class="mark" href="#top">Mol<span>GPT</span></a>
+  <div><a href="#writing">Writing</a><a href="#results">Results</a><a href="#run">Run it</a><a href="https://github.com/Samuelpedroso-dev/molgpt">GitHub</a></div>
+</nav>
+
+<header class="hero" id="top">
+  <div>
+    <h1>A small GPT that writes molecules.</h1>
+    <p class="lead">MolGPT learns from 250,000 drug like molecules and writes new ones as SMILES strings. Ask for a range of logP and QED and it writes to match. Then explore what it invented as a network of similar molecules, in 2D and in 3D.</p>
+    <div class="cta">
+      <a class="btn p" href="interface/">Open the interface</a>
+      <a class="btn" href="https://github.com/Samuelpedroso-dev/molgpt">View on GitHub</a>
+    </div>
+    <p class="ver">Version 0.1, an early release. More coming.</p>
+  </div>
+  <figure class="shot">
+    <div class="bar" aria-hidden="true"><i></i><i></i><i></i></div>
+    <img src="assets/network.jpg" width="1300" height="820" alt="The MolGPT interface showing a network of generated molecules with a 2D and 3D view of the selected one">
+    <figcaption>Ninety molecules generated by the model, linked by Tanimoto similarity.</figcaption>
+  </figure>
+</header>
+
+<section id="writing">
+  <div class="split">
+    <div>
+      <h2>Watch it write, one piece at a time</h2>
+      <p class="sub">The model writes a molecule token by token. Each piece carries a bar with the confidence the model had in that choice, and hovering shows the other options it considered. The recording comes straight from the trained model, and only the playback speed is artificial.</p>
+      <a class="btn" href="interface/">Try it in the interface</a>
+    </div>
+    <figure class="shot" style="margin:0">
+      <div class="bar" aria-hidden="true"><i></i><i></i><i></i></div>
+      <img src="assets/writing.jpg" width="1300" height="820" loading="lazy" alt="The GPT writing a SMILES string token by token, with a confidence bar under each token and the resulting 2D structure">
+    </figure>
+  </div>
+</section>
+
+<section id="results">
+  <h2>What the small model learned</h2>
+  <p class="sub">A model with 0.8 million parameters, trained for about 28 minutes on a CPU. Numbers come from 4000 generated molecules compared with a real ZINC250k sample, measured with RDKit.</p>
+  <div class="nums">
+    <div><b>56%</b><span>valid molecules, the weak spot for a model this small</span></div>
+    <div><b>100%</b><span>unique among the valid ones, and almost all new</span></div>
+    <div><b>0.88 and 0.88</b><span>diversity of the model against real ZINC</span></div>
+    <div><b>0.73 and 0.74</b><span>mean QED of the model against real ZINC</span></div>
+    <div><b>0.75 to 4.17</b><span>mean logP from the lowest to the highest requested bin</span></div>
+  </div>
+  <figure class="shot" style="margin-top:28px">
+    <div class="bar" aria-hidden="true"><i></i><i></i><i></i></div>
+    <img src="assets/results.jpg" width="1300" height="1241" loading="lazy" alt="Training results page with a comparison table, the logP control chart and the learning curve">
+  </figure>
+</section>
+
+<section id="how">
+  <h2>How it works</h2>
+  <p class="sub">The pipeline is short on purpose, so every step is easy to read in the code.</p>
+  <ol class="steps">
+    <li><b>Tokenize every molecule</b><span>Each SMILES string is split into atoms, bonds and ring markers.</span></li>
+    <li><b>Add two control tokens</b><span>One marks the logP bin and one marks the QED bin, so the model can be asked for a range.</span></li>
+    <li><b>Train a GPT on the next token</b><span>The model sees a molecule so far and learns to predict the next piece.</span></li>
+    <li><b>Generate and check</b><span>RDKit reads each result and keeps only the ones that are real molecules.</span></li>
+    <li><b>Filter by drug likeness</b><span>Lipinski rules and PAINS alerts remove poor candidates before the visual step.</span></li>
+  </ol>
+</section>
+
+<section id="run">
+  <h2>Run it yourself</h2>
+  <p class="sub">The small preset trains on a laptop CPU in about half an hour. The full preset is meant for a GPU, for example a free Colab T4.</p>
+<pre>pip install rdkit torch pandas numpy matplotlib
+python molgpt.py cpu     # small model, about 28 minutes on 2 CPU cores
+python molgpt.py         # full model, meant for a GPU</pre>
+  <p class="note" style="margin-top:22px">MolGPT only knows the shape of drug like molecules from ZINC250k. It knows nothing about protein targets or binding affinity, so what it writes are starting candidates and not drugs. The next step is an affinity model, trained on public benchmarks, acting as a judge for the generated molecules.</p>
+</section>
+
+<footer>
+  <span>MolGPT 0.1, released under the MIT License.</span>
+  <span><a href="https://github.com/Samuelpedroso-dev/molgpt">Source on GitHub</a></span>
+</footer>
+</div>
+</body>
+</html>

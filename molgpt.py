@@ -1,5 +1,5 @@
-# MolGPT, versao em script. Rode com python molgpt.py numa maquina com GPU, ou python molgpt.py cpu para o preset pequeno.
-# Dependencias, pip install rdkit torch pandas matplotlib
+# MolGPT, script version. Run python molgpt.py on a machine with a GPU, or python molgpt.py cpu for the small preset.
+# Dependencies, pip install rdkit torch pandas numpy matplotlib
 
 # ===== 02_config.py =====
 import os, sys, re, json, math, time, random, urllib.request
@@ -11,12 +11,12 @@ from rdkit.Chem import AllChem, Descriptors, QED, Draw, rdFingerprintGenerator
 from rdkit.Chem.FilterCatalog import FilterCatalog, FilterCatalogParams
 RDLogger.DisableLog("rdApp.*")
 
-SMOKE = os.environ.get("MOLGPT_SMOKE") == "1"   # teste rapido em CPU
+SMOKE = os.environ.get("MOLGPT_SMOKE") == "1"   # quick CPU smoke test
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 CFG = dict(
     n_mols     = 12000 if SMOKE else 250000,
-    block_size = 80,                       # maior SMILES do ZINC250k tem 72 tokens mais 4 especiais
+    block_size = 80,                       # the longest ZINC250k SMILES has 72 tokens plus 4 special ones
     n_layer    = 2   if SMOKE else 6,
     n_head     = 4   if SMOKE else 8,
     n_embd     = 64  if SMOKE else 256,
@@ -25,15 +25,15 @@ CFG = dict(
     max_iters  = int(os.environ.get("MOLGPT_ITERS", 120)) if SMOKE else 6000,
     lr         = 1e-3 if SMOKE else 6e-4,
     warmup     = 20  if SMOKE else 200,
-    n_bins     = 5,                        # faixas de logP e de QED usadas como condicao
+    n_bins     = 5,                        # logP and QED bins used as conditions
     seed       = 42,
 )
-# python molgpt.py cpu usa o preset pequeno do modelo de demonstracao, com 0,8 milhao de parametros
+# python molgpt.py cpu uses the small preset of the demo model, with 0.8 million parameters
 PRESET = sys.argv[1] if len(sys.argv) > 1 and not sys.argv[1].startswith("-") else ""
 if PRESET == "cpu" and not SMOKE:
     CFG.update(n_layer=4, n_head=4, n_embd=128, batch=128, max_iters=2600, lr=1e-3, warmup=100)
 random.seed(CFG["seed"]); np.random.seed(CFG["seed"]); torch.manual_seed(CFG["seed"])
-print("dispositivo", device, "| modo teste" if SMOKE else "| modo completo")
+print("device", device, "| smoke test mode" if SMOKE else "| full mode")
 
 # ===== 03_dados.py =====
 DATA_URL  = ("https://raw.githubusercontent.com/aspuru-guzik-group/chemical_vae/master/"
@@ -54,7 +54,7 @@ t0 = time.time()
 df["smiles"] = df["smiles"].map(canon)
 df = df.dropna(subset=["smiles"]).drop_duplicates("smiles").reset_index(drop=True)
 TRAIN_SET = set(df["smiles"])
-print(f"{len(df)} moleculas canonicas em {time.time()-t0:.0f}s")
+print(f"{len(df)} canonical molecules in {time.time()-t0:.0f}s")
 print(df[["logP", "qed"]].describe().loc[["mean", "std", "min", "max"]].round(2))
 
 # ===== 04_tokens.py =====
@@ -73,7 +73,7 @@ PAD, BOS, EOS = 0, 1, 2
 V = len(itos)
 L = CFG["block_size"]
 
-# faixas de logP e QED por quantis, usadas como tokens de controle
+# logP and QED bins by quantile, used as control tokens
 lp_edges = np.quantile(df["logP"], np.linspace(0, 1, NB + 1)[1:-1])
 q_edges  = np.quantile(df["qed"],  np.linspace(0, 1, NB + 1)[1:-1])
 lp_bin = np.digitize(df["logP"], lp_edges)
@@ -88,8 +88,8 @@ n_val = max(500, int(0.02 * len(data)))
 perm = np.random.permutation(len(data))
 val_data   = torch.from_numpy(data[perm[:n_val]]).to(device)
 train_data = torch.from_numpy(data[perm[n_val:]]).to(device)
-print("vocabulario", V, "| treino", len(train_data), "| validacao", len(val_data))
-print("exemplo", " ".join(itos[i] for i in data[0] if i != PAD))
+print("vocabulary", V, "| train", len(train_data), "| validation", len(val_data))
+print("example", " ".join(itos[i] for i in data[0] if i != PAD))
 
 # ===== 05_modelo.py =====
 class Block(nn.Module):
@@ -119,7 +119,7 @@ class MolGPT(nn.Module):
         self.blocks = nn.ModuleList([Block(d, h, p) for _ in range(n_layer)])
         self.ln_f = nn.LayerNorm(d)
         self.head = nn.Linear(d, vocab, bias=False)
-        self.head.weight = self.tok.weight          # pesos compartilhados
+        self.head.weight = self.tok.weight          # tied weights
         self.apply(self._init)
     @staticmethod
     def _init(m):
@@ -139,7 +139,7 @@ class MolGPT(nn.Module):
         return logits, loss
 
 model = MolGPT(V, L, CFG["n_embd"], CFG["n_head"], CFG["n_layer"], CFG["dropout"]).to(device)
-print(f"{sum(p.numel() for p in model.parameters())/1e6:.2f} milhoes de parametros")
+print(f"{sum(p.numel() for p in model.parameters())/1e6:.2f} million parameters")
 
 # ===== 06_treino.py =====
 use_amp = device == "cuda"
@@ -178,7 +178,7 @@ for it in range(CFG["max_iters"] + 1):
         g["lr"] = lr_at(it)
     if it % (20 if SMOKE else 250) == 0:
         e = eval_loss(5 if SMOKE else 20); hist.append((it, e["train"], e["val"]))
-        print(f"iter {it:5d} | treino {e['train']:.3f} | validacao {e['val']:.3f} | {time.time()-t0:.0f}s")
+        print(f"iter {it:5d} | train {e['train']:.3f} | validation {e['val']:.3f} | {time.time()-t0:.0f}s")
     if it == CFG["max_iters"]:
         break
     x, y = get_batch("train", CFG["batch"])
@@ -194,14 +194,14 @@ torch.save({"model": model.state_dict(), "cfg": CFG, "itos": itos,
             "lp_edges": lp_edges, "q_edges": q_edges}, "molgpt.pt")
 h = np.array(hist)
 plt.figure(figsize=(6, 3.2))
-plt.plot(h[:, 0], h[:, 1], label="treino"); plt.plot(h[:, 0], h[:, 2], label="validacao")
-plt.xlabel("iteracao"); plt.ylabel("perda"); plt.legend(); plt.title("Curva de aprendizado")
+plt.plot(h[:, 0], h[:, 1], label="train"); plt.plot(h[:, 0], h[:, 2], label="validation")
+plt.xlabel("iteration"); plt.ylabel("loss"); plt.legend(); plt.title("Learning curve")
 plt.tight_layout(); plt.show()
 
 # ===== 07_gerar.py =====
 @torch.no_grad()
 def generate(n, cond=None, temperature=1.0, top_k=None, chunk=1000):
-    """Gera n SMILES. cond e uma tupla (faixa_logP, faixa_QED) e qualquer item pode ser None."""
+    """Generate n SMILES. cond is a tuple (logP bin, QED bin) and either item can be None."""
     model.eval(); out = []
     for i in range(0, n, chunk):
         b = min(chunk, n - i)
@@ -241,7 +241,7 @@ def props(m):
 def lipinski_ok(p):
     return p["mw"] <= 500 and p["logp"] <= 5 and p["hbd"] <= 5 and p["hba"] <= 10
 
-def evaluate(smiles, name="amostra"):
+def evaluate(smiles, name="sample"):
     mols = [(s, Chem.MolFromSmiles(s)) for s in smiles]
     valid = [(s, m) for s, m in mols if m is not None and len(s) > 0]
     can = [Chem.MolToSmiles(m) for _, m in valid]
@@ -253,13 +253,13 @@ def evaluate(smiles, name="amostra"):
     sims = [DataStructs.BulkTanimotoSimilarity(f, fps[i+1:]) for i, f in enumerate(fps[:-1])]
     div = 1 - float(np.mean(np.concatenate(sims))) if sims else float("nan")
     P = [props(Chem.MolFromSmiles(s)) for s in sub]
-    r = dict(amostra=name, gerados=len(smiles),
-             validade=len(valid) / max(1, len(smiles)),
-             unicidade=len(uniq) / max(1, len(valid)),
-             novidade=len(novel) / max(1, len(uniq)),
-             diversidade=div,
-             qed_medio=float(np.mean([p["qed"] for p in P])),
-             logp_medio=float(np.mean([p["logp"] for p in P])),
+    r = dict(sample=name, generated=len(smiles),
+             validity=len(valid) / max(1, len(smiles)),
+             uniqueness=len(uniq) / max(1, len(valid)),
+             novelty=len(novel) / max(1, len(uniq)),
+             diversity=div,
+             mean_qed=float(np.mean([p["qed"] for p in P])),
+             mean_logp=float(np.mean([p["logp"] for p in P])),
              lipinski=float(np.mean([lipinski_ok(p) for p in P])),
              pains=float(np.mean([p["pains"] for p in P])))
     return r, uniq, novel
@@ -267,34 +267,34 @@ def evaluate(smiles, name="amostra"):
 N_GEN = 600 if SMOKE else (4000 if PRESET == "cpu" else 10000)
 t0 = time.time()
 gen_raw = generate(N_GEN, temperature=1.0)
-res, gen_unique, gen_novel = evaluate(gen_raw, "GPT sem condicao")
+res, gen_unique, gen_novel = evaluate(gen_raw, "GPT unconditioned")
 ref_smiles = random.Random(1).sample(sorted(TRAIN_SET), min(3000, len(TRAIN_SET)))
-ref, _, _ = evaluate(ref_smiles, "ZINC real")
-print(f"geradas {N_GEN} em {time.time()-t0:.0f}s")
-print(pd.DataFrame([res, ref]).set_index("amostra").round(3).T)
+ref, _, _ = evaluate(ref_smiles, "real ZINC")
+print(f"generated {N_GEN} in {time.time()-t0:.0f}s")
+print(pd.DataFrame([res, ref]).set_index("sample").round(3).T)
 
-# distribuicao das propriedades contra o ZINC real
+# property distributions against real ZINC
 sample_props = [props(Chem.MolFromSmiles(s)) for s in gen_unique[:3000]]
 ref_props    = [props(Chem.MolFromSmiles(s)) for s in ref_smiles]
 fig, ax = plt.subplots(1, 3, figsize=(11, 3))
-for a_, key, lab in zip(ax, ["logp", "qed", "mw"], ["logP", "QED", "massa molecular"]):
-    a_.hist([p[key] for p in ref_props], bins=40, alpha=.55, density=True, label="ZINC real")
+for a_, key, lab in zip(ax, ["logp", "qed", "mw"], ["logP", "QED", "molecular weight"]):
+    a_.hist([p[key] for p in ref_props], bins=40, alpha=.55, density=True, label="real ZINC")
     a_.hist([p[key] for p in sample_props], bins=40, alpha=.55, density=True, label="GPT")
     a_.set_xlabel(lab)
-ax[0].legend(); plt.suptitle("O GPT aprendeu a distribuicao quimica?"); plt.tight_layout(); plt.show()
+ax[0].legend(); plt.suptitle("Did the GPT learn the chemical distribution?"); plt.tight_layout(); plt.show()
 
-# o controle por condicao funciona? gera por faixa de logP e mede o logP real
+# does conditioning work? generate per logP bin and measure the real logP
 rows = []
 for b in range(NB):
     g = [s for s in generate(150 if SMOKE else 600, cond=(b, None)) if Chem.MolFromSmiles(s)]
     lp = [Descriptors.MolLogP(Chem.MolFromSmiles(s)) for s in g]
     rows.append((b, np.mean(lp) if lp else np.nan, len(g)))
-print("faixa de logP pedida, logP medio obtido, moleculas validas")
+print("logP bin requested, mean logP obtained, valid molecules")
 for r_ in rows: print(r_[0], round(r_[1], 2), r_[2])
 
 # ===== 08_julgar.py =====
-# O GPT propoe, os juizes filtram. Aqui os juizes sao regras de quimica medicinal.
-# Quando o modelo de afinidade existir, ele entra como mais um juiz na funcao judge.
+# The GPT proposes and the judges filter. Here the judges are medicinal chemistry rules.
+# When the affinity model exists it joins the judge function as one more judge.
 def judge(smi):
     m = Chem.MolFromSmiles(smi)
     p = props(m)
@@ -304,9 +304,9 @@ def judge(smi):
 pool = [s for s in gen_novel if judge(s)[0]]
 fps_pool = [morgan.GetFingerprint(Chem.MolFromSmiles(s)) for s in pool]
 ranked = sorted(range(len(pool)), key=lambda i: -props(Chem.MolFromSmiles(pool[i]))["qed"])
-print(f"{len(gen_novel)} novas, {len(pool)} passaram nos filtros")
+print(f"{len(gen_novel)} novel, {len(pool)} passed the filters")
 
-# escolhe candidatas diversas, evitando quase duplicatas
+# pick diverse candidates, avoiding near duplicates
 N_SHOW = 40 if SMOKE else 120
 chosen = []
 for i in ranked:
@@ -315,10 +315,10 @@ for i in ranked:
     if len(chosen) >= N_SHOW:
         break
 candidates = [pool[i] for i in chosen]
-if len(candidates) < 10:   # modelo ainda fraco, completa com moleculas reais so para o visual funcionar
-    print("poucas candidatas validas, completando com moleculas reais do ZINC")
+if len(candidates) < 10:   # model still weak, fill with real molecules just so the visual works
+    print("few valid candidates, filling with real ZINC molecules")
     candidates += ref_smiles[:N_SHOW - len(candidates)]
-print(f"{len(candidates)} moleculas para o visual")
+print(f"{len(candidates)} molecules for the visual")
 Draw.MolsToGridImage([Chem.MolFromSmiles(s) for s in candidates[:12]], molsPerRow=4,
                      subImgSize=(260, 200),
                      legends=[f"QED {QED.qed(Chem.MolFromSmiles(s)):.2f}" for s in candidates[:12]])
@@ -328,9 +328,9 @@ from rdkit.Chem.Draw import rdMolDraw2D
 from rdkit.ML.Cluster import Butina
 
 VIZ_HTML = r"""<!doctype html>
-<html lang="pt-br"><head><meta charset="utf-8">
+<html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Mapa de moleculas</title>
+<title>Molecule map</title>
 <style>
 :root{--bg:#0d1117;--card:#161b22;--line:#30363d;--tx:#e6edf3;--mut:#8b949e;--acc:#58a6ff}
 *{box-sizing:border-box}
@@ -359,18 +359,18 @@ button:hover{border-color:var(--acc)}
 .nb button b{color:var(--acc)}
 </style></head><body>
 <header><h1 id="ttl"></h1>
-<p>Cada ponto e uma molecula. Linhas ligam moleculas parecidas (similaridade de Tanimoto) e as cores mostram grupos. Clique num ponto para ver a estrutura se montando e o modelo 3D.</p></header>
+<p>Each dot is a molecule. Lines connect similar molecules (Tanimoto similarity) and colors show clusters. Click a dot to watch the structure build itself and to see the 3D model.</p></header>
 <div class="wrap">
  <div id="stage"><canvas id="g"></canvas><div id="tip"></div>
-  <div id="hint">arraste um ponto para mexer na rede</div></div>
+  <div id="hint">drag a dot to move the network</div></div>
  <div id="panel">
-  <h2 id="ph">Escolha uma molecula</h2>
-  <div class="box" id="d2"><span class="lab">estrutura 2D</span></div>
-  <div class="stats"><div><b id="sq">-</b><span>QED</span></div><div><b id="sl">-</b><span>logP</span></div><div><b id="sm">-</b><span>massa</span></div></div>
+  <h2 id="ph">Pick a molecule</h2>
+  <div class="box" id="d2"><span class="lab">2D structure</span></div>
+  <div class="stats"><div><b id="sq">-</b><span>QED</span></div><div><b id="sl">-</b><span>logP</span></div><div><b id="sm">-</b><span>mass</span></div></div>
   <div id="smi"></div>
-  <div class="box"><span class="lab">estrutura 3D (arraste para girar)</span><canvas id="c3"></canvas></div>
+  <div class="box"><span class="lab">3D structure (drag to rotate)</span><canvas id="c3"></canvas></div>
   <div class="nb" id="nb"></div>
-  <div><button id="replay">repetir animacao</button></div>
+  <div><button id="replay">replay animation</button></div>
  </div>
 </div>
 <script>
@@ -471,7 +471,7 @@ function parseMB(mb){
   const R = Math.max(...at.map(a => Math.hypot(a.x, a.y, a.z))) + 0.8; return {at, bd, R}; }
 function draw3(){
   x3.clearRect(0, 0, w3, h3);
-  if (!mol3) { x3.fillStyle = '#8b949e'; x3.font = '12px system-ui'; x3.textAlign = 'center'; x3.fillText('sem conformacao 3D', w3 / 2, h3 / 2); return; }
+  if (!mol3) { x3.fillStyle = '#8b949e'; x3.font = '12px system-ui'; x3.textAlign = 'center'; x3.fillText('no 3D conformer', w3 / 2, h3 / 2); return; }
   if (auto && !drag3) rotY += 0.012;
   const cy = Math.cos(rotY), sy_ = Math.sin(rotY), cxr = Math.cos(rotX), sxr = Math.sin(rotX), sc = Math.min(w3, h3) / 2 / mol3.R * 1.1, F = 14;
   const pts = mol3.at.map(a => { let x = a.x * cy + a.z * sy_, z = -a.x * sy_ + a.z * cy, y = a.y * cxr - z * sxr; z = a.y * sxr + z * cxr;
@@ -499,14 +499,14 @@ window.addEventListener('mousemove', ev => { if (!drag3) return; rotY += (ev.cli
 /* ---------- selecao ---------- */
 function select(i){
   sel = i; const m = M[i];
-  $('ph').textContent = 'Molecula ' + (i + 1) + (m.cl < 0 ? ' sem grupo' : ' do grupo ' + (m.cl + 1));
-  $('d2').innerHTML = '<span class="lab">estrutura 2D</span>' + m.svg; anim2d();
+  $('ph').textContent = 'Molecule ' + (i + 1) + (m.cl < 0 ? ', no cluster' : ', cluster ' + (m.cl + 1));
+  $('d2').innerHTML = '<span class="lab">2D structure</span>' + m.svg; anim2d();
   $('sq').textContent = m.qed.toFixed(2); $('sl').textContent = m.logp.toFixed(1); $('sm').textContent = Math.round(m.mw);
   typeSmi(m.smi); mol3 = m.mb ? parseMB(m.mb) : null; rotY = 0;
   const nb = $('nb'); nb.innerHTML = '';
-  nbrs[i].slice(0, 4).forEach(n => { const b = document.createElement('button'); b.innerHTML = 'parecida ' + (n[1] * 100).toFixed(0) + '% <b>#' + (n[0] + 1) + '</b>'; b.onclick = () => select(n[0]); nb.appendChild(b); });
+  nbrs[i].slice(0, 4).forEach(n => { const b = document.createElement('button'); b.innerHTML = 'similar ' + (n[1] * 100).toFixed(0) + '% <b>#' + (n[0] + 1) + '</b>'; b.onclick = () => select(n[0]); nb.appendChild(b); });
 }
-$('replay').onclick = () => { if (sel >= 0) { $('d2').innerHTML = '<span class="lab">estrutura 2D</span>' + M[sel].svg; anim2d(); typeSmi(M[sel].smi); } t0 = performance.now(); alpha = 0.6; };
+$('replay').onclick = () => { if (sel >= 0) { $('d2').innerHTML = '<span class="lab">2D structure</span>' + M[sel].svg; anim2d(); typeSmi(M[sel].smi); } t0 = performance.now(); alpha = 0.6; };
 window.__select = select;
 </script></body></html>"""
 
@@ -530,7 +530,7 @@ def _molblock3d(m, seed=7):
         pass
     return Chem.MolToMolBlock(Chem.RemoveHs(mh))
 
-def make_viz(smiles, path="molgpt_viz.html", title="Moleculas inventadas pelo GPT", max_n=150, thr_edge=0.4):
+def make_viz(smiles, path="molgpt_viz.html", title="Molecules invented by the GPT", max_n=150, thr_edge=0.4):
     smiles = list(dict.fromkeys(smiles))[:max_n]
     mols = [Chem.MolFromSmiles(s) for s in smiles]
     n = len(mols)
@@ -540,7 +540,7 @@ def make_viz(smiles, path="molgpt_viz.html", title="Moleculas inventadas pelo GP
     for i in range(1, n):
         dists.extend(1 - S[i, :i])
     clusters = Butina.ClusterData(dists, n, 0.75, isDistData=True)
-    cid = [-1] * n   # menos um significa molecula isolada
+    cid = [-1] * n   # minus one means a singleton molecule
     for k, c in enumerate([c for c in sorted(clusters, key=len, reverse=True) if len(c) > 1]):
         for j in c:
             cid[j] = k
@@ -563,13 +563,13 @@ def make_viz(smiles, path="molgpt_viz.html", title="Moleculas inventadas pelo GP
     html = VIZ_HTML.replace("__DATA__", blob)
     with open(path, "w", encoding="utf-8") as f:
         f.write(html)
-    print(f"{n} moleculas, {len(edges)} ligacoes, {len(set(cid) - {-1})} grupos e {cid.count(-1)} isoladas. Arquivo {path} ({len(html)/1e6:.1f} MB)")
+    print(f"{n} molecules, {len(edges)} links, {len(set(cid) - {-1})} clusters and {cid.count(-1)} singletons. File {path} ({len(html)/1e6:.1f} MB)")
     return html
 
 # ===== 10_mostrar.py =====
-viz_html = make_viz(candidates, "molgpt_viz.html", "Moleculas inventadas pelo GPT")
+viz_html = make_viz(candidates, "molgpt_viz.html", "Molecules invented by the GPT")
 try:
     from IPython.display import HTML, display
     display(HTML(viz_html))
 except Exception as e:
-    print("abra o arquivo molgpt_viz.html no navegador", e)
+    print("open molgpt_viz.html in your browser", e)
