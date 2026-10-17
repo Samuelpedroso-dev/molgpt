@@ -1,0 +1,29 @@
+vocabulario 75 | treino 244466 | validacao 4989
+0.81 milhoes de parametros
+iter     0 | treino 4.266 | validacao 4.267 | 5s
+iter   100 | treino 1.598 | validacao 1.602 | 71s
+iter   200 | treino 1.258 | validacao 1.264 | 138s
+iter   300 | treino 1.118 | validacao 1.114 | 208s
+iter   400 | treino 1.036 | validacao 1.041 | 280s
+iter   500 | treino 0.996 | validacao 0.991 | 351s
+iter   600 | treino 0.958 | validacao 0.959 | 419s
+iter   700 | treino 0.939 | validacao 0.944 | 484s
+iter   800 | treino 0.923 | validacao 0.914 | 547s
+iter   900 | treino 0.901 | validacao 0.913 | 608s
+iter  1000 | treino 0.884 | validacao 0.883 | 672s
+iter  1100 | treino 0.852 | validacao 0.859 | 737s
+iter  1200 | treino 0.851 | validacao 0.851 | 801s
+iter  1300 | treino 0.850 | validacao 0.849 | 865s
+iter  1400 | treino 0.827 | validacao 0.841 | 930s
+iter  1500 | treino 0.819 | validacao 0.821 | 994s
+iter  1600 | treino 0.805 | validacao 0.810 | 1059s
+iter  1700 | treino 0.802 | validacao 0.812 | 1123s
+iter  1800 | treino 0.795 | validacao 0.800 | 1186s
+iter  1900 | treino 0.782 | validacao 0.786 | 1251s
+iter  2000 | treino 0.780 | validacao 0.792 | 1320s
+iter  2100 | treino 0.780 | validacao 0.782 | 1387s
+iter  2200 | treino 0.779 | validacao 0.776 | 1455s
+iter  2300 | treino 0.766 | validacao 0.772 | 1520s
+iter  2400 | treino 0.765 | validacao 0.777 | 1586s
+iter  2500 | treino 0.772 | validacao 0.771 | 1650s
+iter  2600 | treino 0.772 | validacao 0.770 | 1717s

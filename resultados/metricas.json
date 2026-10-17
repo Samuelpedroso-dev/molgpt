@@ -1,0 +1,198 @@
+{
+ "modelo": {
+  "parametros_milhoes": 0.81,
+  "camadas": 4,
+  "cabecas": 4,
+  "dimensao": 128,
+  "rodadas": 2600,
+  "lote": 128,
+  "dispositivo": "CPU com 2 nucleos",
+  "tempo_treino_minutos": 28
+ },
+ "gerado_pelo_gpt": {
+  "gerados": 4000.0,
+  "validade": 0.56,
+  "unicidade": 1.0,
+  "novidade": 0.9996,
+  "diversidade": 0.8766,
+  "qed_medio": 0.73,
+  "logp_medio": 2.4285,
+  "lipinski": 0.965,
+  "pains": 0.021
+ },
+ "referencia_zinc_real": {
+  "gerados": 3000.0,
+  "validade": 1.0,
+  "unicidade": 1.0,
+  "novidade": 0.0,
+  "diversidade": 0.8813,
+  "qed_medio": 0.7377,
+  "logp_medio": 2.3797,
+  "lipinski": 0.987,
+  "pains": 0.031
+ },
+ "controle_logp": [
+  {
+   "faixa": 1,
+   "logp_medio": 0.748,
+   "validas": 113
+  },
+  {
+   "faixa": 2,
+   "logp_medio": 1.896,
+   "validas": 114
+  },
+  {
+   "faixa": 3,
+   "logp_medio": 2.546,
+   "validas": 110
+  },
+  {
+   "faixa": 4,
+   "logp_medio": 3.2,
+   "validas": 109
+  },
+  {
+   "faixa": 5,
+   "logp_medio": 4.166,
+   "validas": 87
+  }
+ ],
+ "curva": [
+  {
+   "rodada": 0,
+   "treino": 4.2663,
+   "validacao": 4.2675
+  },
+  {
+   "rodada": 100,
+   "treino": 1.5978,
+   "validacao": 1.6023
+  },
+  {
+   "rodada": 200,
+   "treino": 1.2575,
+   "validacao": 1.2637
+  },
+  {
+   "rodada": 300,
+   "treino": 1.1183,
+   "validacao": 1.1144
+  },
+  {
+   "rodada": 400,
+   "treino": 1.036,
+   "validacao": 1.041
+  },
+  {
+   "rodada": 500,
+   "treino": 0.9957,
+   "validacao": 0.9913
+  },
+  {
+   "rodada": 600,
+   "treino": 0.9575,
+   "validacao": 0.9589
+  },
+  {
+   "rodada": 700,
+   "treino": 0.9388,
+   "validacao": 0.944
+  },
+  {
+   "rodada": 800,
+   "treino": 0.9227,
+   "validacao": 0.9143
+  },
+  {
+   "rodada": 900,
+   "treino": 0.9007,
+   "validacao": 0.9132
+  },
+  {
+   "rodada": 1000,
+   "treino": 0.8838,
+   "validacao": 0.8833
+  },
+  {
+   "rodada": 1100,
+   "treino": 0.852,
+   "validacao": 0.8585
+  },
+  {
+   "rodada": 1200,
+   "treino": 0.8514,
+   "validacao": 0.8505
+  },
+  {
+   "rodada": 1300,
+   "treino": 0.8499,
+   "validacao": 0.8491
+  },
+  {
+   "rodada": 1400,
+   "treino": 0.8271,
+   "validacao": 0.841
+  },
+  {
+   "rodada": 1500,
+   "treino": 0.819,
+   "validacao": 0.821
+  },
+  {
+   "rodada": 1600,
+   "treino": 0.8048,
+   "validacao": 0.8097
+  },
+  {
+   "rodada": 1700,
+   "treino": 0.8024,
+   "validacao": 0.812
+  },
+  {
+   "rodada": 1800,
+   "treino": 0.7952,
+   "validacao": 0.7997
+  },
+  {
+   "rodada": 1900,
+   "treino": 0.7816,
+   "validacao": 0.7862
+  },
+  {
+   "rodada": 2000,
+   "treino": 0.7798,
+   "validacao": 0.7919
+  },
+  {
+   "rodada": 2100,
+   "treino": 0.7804,
+   "validacao": 0.7819
+  },
+  {
+   "rodada": 2200,
+   "treino": 0.7791,
+   "validacao": 0.7757
+  },
+  {
+   "rodada": 2300,
+   "treino": 0.7664,
+   "validacao": 0.7717
+  },
+  {
+   "rodada": 2400,
+   "treino": 0.7646,
+   "validacao": 0.7775
+  },
+  {
+   "rodada": 2500,
+   "treino": 0.7717,
+   "validacao": 0.7709
+  },
+  {
+   "rodada": 2600,
+   "treino": 0.7722,
+   "validacao": 0.7703
+  }
+ ]
+}
