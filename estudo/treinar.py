@@ -25,7 +25,7 @@ torch.set_num_threads(2)
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 KEKULE = os.environ.get("KEKULE") == "1"
-SAIDA = os.path.join(AQUI, "saida_kekule" if KEKULE else "saida")
+SAIDA = os.environ.get("SAIDA_DIR") or os.path.join(AQUI, "saida_kekule" if KEKULE else "saida")
 os.makedirs(SAIDA, exist_ok=True)
 
 CFG = dict(
@@ -48,11 +48,13 @@ def log(msg):
 
 # ----------------------------------------------------------------- dados
 def preparar():
-    cache = os.path.join(SAIDA, "dados.npz")
+    # nome novo de proposito, o cache antigo foi feito com a separacao errada
+    cache = os.path.join(SAIDA, "dados_v2.npz")
     if os.path.exists(cache):
         z = np.load(cache, allow_pickle=True)
-        log(f"cache carregado, {len(z['stream'])} tokens")
-        return z["stream"], list(z["itos"]), set(z["treino_smiles"].tolist())
+        log(f"cache carregado, treino {len(z['stream'])} tokens, "
+            f"validacao {len(z['stream_val'])} tokens")
+        return z["stream"], z["stream_val"], list(z["itos"]), set(z["treino_smiles"].tolist())
 
     import pandas as pd
     df = pd.read_csv(os.path.join(AQUI, "zinc250k.csv"))
@@ -101,23 +103,43 @@ def preparar():
     stoi = {t: i for i, t in enumerate(itos)}
     BOS, EOS = 1, 2
 
-    fluxo, guardadas = [], []
-    for ts, a, b in zip(toks_por_mol, lp_b, q_b):
-        if ts is None:
-            continue
-        fluxo.append(BOS)
-        fluxo.append(stoi[f"<lp{a}>"])
-        fluxo.append(stoi[f"<q{b}>"])
-        fluxo.extend(stoi[t] for t in ts)
-        fluxo.append(EOS)
-        guardadas.append("".join(ts))
+    # A separacao e POR MOLECULA, nao por posicao no fluxo.
+    #
+    # A versao anterior cortava o fluxo ja empacotado num ponto fixo, entao
+    # uma janela de validacao podia atravessar a fronteira entre duas
+    # moleculas e pedacos da mesma molecula podiam cair dos dois lados. A
+    # perda de validacao nao media molecula nova. Agora as moleculas de
+    # validacao sao sorteadas inteiras e empacotadas num fluxo separado.
+    validos = [i for i, ts in enumerate(toks_por_mol) if ts is not None]
+    rng = np.random.RandomState(CFG["seed"])
+    perm = rng.permutation(validos)
+    n_val = min(6000, int(0.025 * len(validos)))
+    ids_val = set(perm[:n_val].tolist())
 
-    stream = np.array(fluxo, dtype=np.uint16)
-    log(f"fluxo empacotado, {len(stream)} tokens, vocabulario {len(itos)}, "
-        f"{len(guardadas)} moleculas")
-    np.savez_compressed(cache, stream=stream, itos=np.array(itos, dtype=object),
-                        treino_smiles=np.array(guardadas, dtype=object))
-    return stream, itos, set(guardadas)
+    def empacota(indices):
+        fl, gs = [], []
+        for i in indices:
+            ts = toks_por_mol[i]
+            fl.append(BOS)
+            fl.append(stoi[f"<lp{lp_b[i]}>"])
+            fl.append(stoi[f"<q{q_b[i]}>"])
+            fl.extend(stoi[t] for t in ts)
+            fl.append(EOS)
+            gs.append("".join(ts))
+        return np.array(fl, dtype=np.uint16), gs
+
+    ids_tre = [i for i in validos if i not in ids_val]
+    stream, guardadas = empacota(ids_tre)
+    stream_val, guardadas_val = empacota(sorted(ids_val))
+    comum = set(guardadas) & set(guardadas_val)
+    log(f"fluxo de treino {len(stream)} tokens em {len(guardadas)} moleculas, "
+        f"validacao {len(stream_val)} tokens em {len(guardadas_val)} moleculas")
+    log(f"moleculas repetidas entre treino e validacao, {len(comum)}")
+    np.savez_compressed(cache, stream=stream, stream_val=stream_val,
+                        itos=np.array(itos, dtype=object),
+                        treino_smiles=np.array(guardadas, dtype=object),
+                        val_smiles=np.array(guardadas_val, dtype=object))
+    return stream, stream_val, itos, set(guardadas)
 
 
 # ----------------------------------------------------------------- modelo
@@ -234,12 +256,11 @@ def medir(brutos, treino_set):
 
 # ------------------------------------------------------------------ treino
 def main():
-    stream, itos, treino_set = preparar()
+    stream, stream_val, itos, treino_set = preparar()
     stoi = {t: i for i, t in enumerate(itos)}
     V, ctx = len(itos), CFG["block_size"]
-    dados = torch.from_numpy(stream.astype(np.int64))
-    n_val = min(200000, int(0.02 * len(dados)))
-    val, tre = dados[:n_val], dados[n_val:]
+    tre = torch.from_numpy(stream.astype(np.int64))
+    val = torch.from_numpy(stream_val.astype(np.int64))
 
     modelo = MolGPT(V, ctx, CFG["n_embd"], CFG["n_head"], CFG["n_layer"], CFG["dropout"])
     n_par = sum(p.numel() for p in modelo.parameters())
