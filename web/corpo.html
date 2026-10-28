@@ -1,0 +1,417 @@
+<title>MolGPT</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout, uma coluna de leitura escura com o painel de geracao no topo,
+   console a direita no desktop e empilhado no telefone. Preto e branco,
+   um unico tema por escolha. */
+:root{
+  --preto:#000000;
+  --fundo:#050506;
+  --painel:#0b0c0d;
+  --linha:rgba(255,255,255,.13);
+  --linha2:rgba(255,255,255,.26);
+  --branco:#ffffff;
+  --cinza:#9aa0a4;
+  --fraco:#5b6165;
+  --disp:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{background:var(--fundo)}
+body{
+  margin:0;color:var(--cinza);font-family:var(--disp);font-weight:300;
+  font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+.grao{
+  position:fixed;inset:0;pointer-events:none;z-index:60;opacity:.055;
+  background-image:url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  mix-blend-mode:screen;
+}
+.env{
+  width:100%;max-width:1220px;margin:0 auto;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+}
+h1,h2,h3{font-weight:500;color:var(--branco);margin:0;text-wrap:balance}
+.olho{
+  font-size:10px;letter-spacing:.26em;text-transform:uppercase;
+  color:var(--fraco);font-weight:500;font-family:var(--disp);
+}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* entrada da pagina, revelacao lenta no estilo do site antigo da neuralink */
+.sobe{animation:sobe 1.1s cubic-bezier(.16,1,.3,1) both}
+@keyframes sobe{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){
+  .sobe{animation:none}
+  .ponto{animation:none}
+}
+
+/* cabecalho */
+header{border-bottom:1px solid var(--linha);background:var(--preto)}
+.cab{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-block:18px}
+.marca{
+  font-size:17px;font-weight:600;letter-spacing:.3em;color:var(--branco);
+  text-transform:uppercase
+}
+.cab .ficha{display:flex;gap:22px;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--fraco)}
+.cab .ficha b{color:var(--branco);font-weight:500;font-family:var(--mono);letter-spacing:.04em}
+@media (max-width:720px){.cab .ficha{display:none}}
+
+/* hero */
+.hero{padding-block:34px 26px;border-bottom:1px solid var(--linha)}
+.hero h1{
+  font-size:clamp(28px,4vw,46px);line-height:1.06;letter-spacing:-.025em;
+  font-weight:600;max-width:15ch
+}
+.hero p{max-width:54ch;margin:0;font-size:15px}
+.hero .olho{margin-bottom:16px;display:block}
+.topo{display:grid;grid-template-columns:1.1fr 1fr;gap:40px;align-items:end}
+@media (max-width:960px){.topo{grid-template-columns:1fr;gap:16px;align-items:start}}
+
+/* bancada */
+.bancada{display:grid;grid-template-columns:1.55fr 1fr;gap:1px;background:var(--linha);
+  border:1px solid var(--linha);margin-top:28px}
+@media (max-width:900px){.bancada{grid-template-columns:1fr}}
+.tela{position:relative;background:var(--preto);min-height:560px;height:100%;
+  max-width:100%;min-width:0}
+@media (max-width:900px){.tela{aspect-ratio:1/1;height:auto;min-height:340px}}
+.tela canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.selo{
+  position:absolute;top:14px;left:14px;display:flex;align-items:center;gap:8px;
+  font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--branco);
+  background:rgba(0,0,0,.45);padding:5px 9px;border:1px solid var(--linha)
+}
+.ponto{width:5px;height:5px;background:var(--branco);border-radius:50%;animation:pulso 1.6s ease-in-out infinite}
+@keyframes pulso{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.25;transform:scale(.7)}}
+.fita{
+  position:absolute;left:0;right:0;bottom:0;padding:12px 14px 14px;
+  background:linear-gradient(transparent,rgba(0,0,0,.92) 42%);
+  font-family:var(--mono);font-size:13px;line-height:1.5;word-break:break-all;color:var(--branco)
+}
+.fita .cursor{display:inline-block;width:7px;height:14px;background:var(--branco);
+  vertical-align:-2px;animation:pulso 1.1s steps(2,end) infinite}
+.fita .rot{font-family:var(--disp);font-size:9px;letter-spacing:.24em;text-transform:uppercase;
+  color:var(--fraco);display:block;margin-bottom:6px}
+
+/* console */
+.console{background:var(--painel);padding:20px 18px;display:flex;flex-direction:column;
+  gap:20px;min-width:0}
+.bloco{display:flex;flex-direction:column;gap:9px;min-width:0}
+.bloco .olho{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.bloco .olho b{color:var(--branco);font-family:var(--mono);letter-spacing:.02em;font-weight:500}
+input[type=range]{width:100%;accent-color:#ffffff;background:transparent;height:20px}
+.faixas{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--linha)}
+.faixas button{
+  background:var(--preto);border:0;color:var(--cinza);font-family:var(--mono);font-size:11px;
+  padding:9px 0;cursor:pointer;transition:background .18s,color .18s
+}
+.faixas button[aria-pressed=true]{background:var(--branco);color:#000}
+.faixas button:hover:not([aria-pressed=true]){color:var(--branco);background:#17191a}
+.acoes{display:grid;grid-template-columns:1fr auto;gap:10px}
+.bt{
+  font-family:var(--disp);font-size:11px;letter-spacing:.2em;text-transform:uppercase;
+  font-weight:500;padding:13px 18px;cursor:pointer;border:1px solid var(--branco);
+  background:var(--branco);color:#000;transition:opacity .18s
+}
+.bt:hover{opacity:.78}
+.bt.vazio{background:transparent;color:var(--branco);border-color:var(--linha2)}
+.bt.vazio[aria-pressed=true]{background:var(--branco);color:#000;border-color:var(--branco)}
+:focus-visible{outline:1px solid var(--branco);outline-offset:2px}
+
+table.prop{width:100%;border-collapse:collapse;font-size:13px}
+table.prop td{padding:6px 0;border-bottom:1px solid var(--linha)}
+table.prop td:last-child{text-align:right;color:var(--branco);font-family:var(--mono);
+  font-variant-numeric:tabular-nums}
+table.prop tr:last-child td{border-bottom:0}
+.vered{
+  display:flex;align-items:center;gap:10px;font-size:11px;letter-spacing:.18em;
+  text-transform:uppercase;padding:11px 12px;border:1px solid var(--linha)
+}
+.vered .bolha{width:7px;height:7px;border-radius:50%;background:var(--fraco);flex:none}
+.vered.ok{color:var(--branco)}
+.vered.ok .bolha{background:var(--branco)}
+.vered.ruim{color:var(--cinza)}
+.vered.ruim .bolha{background:#3c4044;box-shadow:inset 0 0 0 1px var(--linha2)}
+
+/* numeros ao vivo */
+.medidas{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--linha);
+  border:1px solid var(--linha);border-top:0}
+@media (max-width:720px){.medidas{grid-template-columns:repeat(2,1fr)}}
+.medida{background:var(--preto);padding:16px 14px;display:flex;flex-direction:column;gap:5px}
+.medida b{font-family:var(--mono);font-size:22px;color:var(--branco);font-weight:500;
+  font-variant-numeric:tabular-nums;line-height:1}
+.medida span{font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--fraco)}
+
+/* galeria */
+.galeria{padding-block:34px}
+.tiras{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:1px;
+  border:1px solid var(--linha);margin-top:16px}
+.tira{background:var(--preto);aspect-ratio:1;position:relative;cursor:pointer;border:0;padding:0;
+  box-shadow:0 0 0 1px var(--linha);transition:background .2s}
+.tira:hover{background:#141617}
+.tira canvas{width:100%;height:100%;display:block}
+.tira i{position:absolute;bottom:5px;left:6px;right:6px;font-family:var(--mono);font-size:9px;
+  font-style:normal;color:var(--fraco);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vazia{grid-column:1/-1;background:var(--preto);padding:28px 16px;font-size:13px;color:var(--fraco)}
+
+/* texto */
+.conta{padding-block:40px;border-top:1px solid var(--linha)}
+.conta h2{font-size:clamp(20px,2.6vw,27px);letter-spacing:-.02em;max-width:24ch}
+.colunas{display:grid;grid-template-columns:repeat(3,1fr);gap:30px;margin-top:28px}
+@media (max-width:860px){.colunas{grid-template-columns:1fr;gap:24px}}
+.colunas h3{font-size:13px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:8px}
+.colunas p{margin:0;font-size:14px;max-width:46ch}
+.colunas .num{color:var(--branco)}
+.limite{border:1px solid var(--linha);padding:20px;margin-top:30px;background:var(--painel)}
+.limite h3{font-size:11px;letter-spacing:.22em;text-transform:uppercase;margin-bottom:10px}
+.limite p{margin:0 0 9px;font-size:14px;max-width:72ch}
+.limite p:last-child{margin-bottom:0}
+
+/* triagem */
+.tri{display:flex;flex-direction:column;gap:14px;min-width:0}
+.tlinha{display:flex;flex-direction:column;gap:6px;min-width:0}
+.tcab{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:11.5px}
+.tcab b{font-family:var(--mono);color:var(--branco);font-weight:500;font-variant-numeric:tabular-nums}
+.barra{position:relative;height:4px;background:#17191a;overflow:hidden}
+.barra i{position:absolute;left:0;top:0;bottom:0;background:var(--branco);width:0;
+  transition:width .45s cubic-bezier(.16,1,.3,1)}
+.barra u{position:absolute;top:-3px;bottom:-3px;width:1px;background:var(--linha2);text-decoration:none}
+.tnota{font-size:10.5px;color:var(--fraco);display:flex;justify-content:space-between;gap:8px}
+select{width:100%;max-width:100%;min-width:0;background:var(--preto);color:var(--branco);
+  border:1px solid var(--linha);font-family:var(--mono);font-size:12px;padding:8px 9px;
+  appearance:none;text-overflow:ellipsis}
+.dom{font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;padding:2px 6px;
+  border:1px solid var(--linha2);color:var(--cinza)}
+.dom.fora{color:#000;background:var(--cinza);border-color:var(--cinza)}
+
+/* tabelas de metodo */
+.rolagem{overflow-x:auto;margin-top:18px;border:1px solid var(--linha)}
+table.dados{width:100%;border-collapse:collapse;font-size:12.5px;min-width:520px}
+table.dados th,table.dados td{padding:9px 12px;text-align:right;border-bottom:1px solid var(--linha);
+  white-space:nowrap}
+table.dados td:last-child,table.dados th:last-child{white-space:normal;min-width:21ch;text-align:left}
+table.dados th:first-child,table.dados td:first-child{text-align:left}
+table.dados th{font-family:var(--disp);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--fraco);font-weight:500}
+table.dados td{font-family:var(--mono);color:var(--cinza);font-variant-numeric:tabular-nums}
+table.dados td:first-child{font-family:var(--disp);color:var(--cinza)}
+table.dados tr:last-child td{border-bottom:0}
+table.dados .forte td{color:var(--branco)}
+table.dados .venceu{color:var(--branco);font-weight:500}
+.legenda{font-size:12px;color:var(--fraco);margin-top:10px;max-width:72ch}
+footer{border-top:1px solid var(--linha);padding-block:26px 34px;font-size:12px}
+.pe{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:baseline}
+footer a{color:var(--branco);text-decoration:none;border-bottom:1px solid var(--linha2);padding-bottom:1px}
+footer a:hover{border-color:var(--branco)}
+</style>
+
+<div class="grao" aria-hidden="true"></div>
+
+<header>
+  <div class="env cab">
+    <div class="marca">MolGPT</div>
+    <div class="ficha">
+      <span>Parâmetros <b>819.328</b></span>
+      <span>Camadas <b>4</b></span>
+      <span>Pesos <b>1,6 MB</b></span>
+      <span>Passo <b id="f-passo">3000</b></span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="hero env sobe">
+    <span class="olho">Transformer de 819.328 parâmetros rodando no seu navegador</span>
+    <div class="topo">
+      <h1>O modelo escreve moléculas enquanto você olha</h1>
+      <p>Os pesos chegam em float16, a inferência acontece aqui mesmo, token por token, com cache de
+      chave e valor. Nada de vídeo gravado e nada de servidor. A estrutura que aparece na tela é
+      desenhada a partir do SMILES que o modelo acabou de escrever, por um parser e um layout de
+      forças escritos do zero, sem biblioteca de química.</p>
+    </div>
+
+    <div class="bancada">
+      <div class="tela">
+        <canvas id="tela"></canvas>
+        <div class="selo"><span class="ponto" id="ponto"></span><span id="estado">Carregando pesos</span></div>
+        <div class="fita">
+          <span class="rot">SMILES, saída bruta do modelo</span>
+          <span id="saida"></span><span class="cursor" id="cursor"></span>
+        </div>
+      </div>
+
+      <div class="console">
+        <div class="bloco">
+          <label class="olho" for="temp">Temperatura <b id="v-temp">0,80</b></label>
+          <input type="range" id="temp" min="0.55" max="1.05" step="0.05" value="0.8">
+          <div style="font-size:11.5px;color:var(--fraco);margin-top:-2px">
+            Mais baixa copia o que o modelo viu, mais alta arrisca. A validade cai junto.
+          </div>
+        </div>
+
+        <div class="bloco">
+          <span class="olho">Faixa de lipofilicidade <b id="v-faixa">2</b></span>
+          <div class="faixas" id="faixas" role="group" aria-label="Faixa de lipofilicidade"></div>
+          <div style="font-size:11.5px;color:var(--fraco)">
+            Token de condicionamento aprendido no treino. logP médio da faixa, <span class="num"
+            id="v-logp">2,55</span>, medido nos dados, não na molécula gerada.
+          </div>
+        </div>
+
+        <div class="acoes">
+          <button class="bt" id="gerar">Gerar</button>
+          <button class="bt vazio" id="loop" aria-pressed="true">Contínuo</button>
+        </div>
+
+        <div class="bloco">
+          <span class="olho">Contagem exata do grafo</span>
+          <table class="prop">
+            <tbody id="prop">
+              <tr><td>Fórmula</td><td id="p-form">&mdash;</td></tr>
+              <tr><td>Massa molar</td><td id="p-mw">&mdash;</td></tr>
+              <tr><td>Átomos pesados</td><td id="p-at">&mdash;</td></tr>
+              <tr><td>Anéis</td><td id="p-an">&mdash;</td></tr>
+              <tr><td>Doadores de hidrogênio</td><td id="p-hbd">&mdash;</td></tr>
+              <tr><td>Aceptores de hidrogênio</td><td id="p-hba">&mdash;</td></tr>
+              <tr><td>Átomos aromáticos</td><td id="p-ar">&mdash;</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="vered" id="vered"><span class="bolha"></span><span id="v-motivo">Aguardando</span></div>
+
+        <div class="bloco">
+          <span class="olho">Triagem, três modelos <span class="dom" id="t-dom">domínio</span></span>
+          <div class="tri">
+
+            <div class="tlinha">
+              <div class="tcab"><span>Sintetizabilidade</span><b id="t-sas">&mdash;</b></div>
+              <div class="barra"><i id="t-sasb"></i><u id="t-sasz" style="left:50%"></u></div>
+              <div class="tnota"><span>1 fácil, 10 difícil</span><span id="t-sasn">traço, mediana do ZINC</span></div>
+            </div>
+
+            <div class="tlinha">
+              <div class="tcab"><span id="t-toxe">Alerta toxicológico</span><b id="t-tox">&mdash;</b></div>
+              <div class="barra"><i id="t-toxb"></i></div>
+              <div class="tnota"><span>Percentil contra o ZINC, ensaio mais alto</span><span id="t-toxn"></span></div>
+            </div>
+
+            <div class="tlinha">
+              <div class="tcab"><span>Afinidade prevista</span><b id="t-af">&mdash;</b></div>
+              <div class="barra"><i id="t-afb"></i></div>
+              <div class="tnota"><span id="t-afn">Percentil contra 2000 do ZINC no mesmo alvo</span><span id="t-afp"></span></div>
+              <select id="alvo" aria-label="Alvo do Davis"></select>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="medidas">
+      <div class="medida"><b class="num" id="m-ger">0</b><span>Moléculas geradas aqui</span></div>
+      <div class="medida"><b class="num" id="m-taxa">&mdash;</b><span>Passam na conferência do navegador</span></div>
+      <div class="medida"><b class="num" id="m-rdkit">68,5%</b><span>Passam no RDKit, medido no treino</span></div>
+      <div class="medida"><b class="num" id="m-tok">&mdash;</b><span>Milissegundos por token</span></div>
+    </div>
+  </section>
+
+  <section class="galeria env">
+    <span class="olho">Aceitas nesta sessão, clique para abrir</span>
+    <div class="tiras" id="tiras"><div class="vazia">A primeira molécula aparece aqui em alguns segundos.</div></div>
+  </section>
+
+  <section class="conta env">
+    <h2>O que está rodando de verdade</h2>
+    <div class="colunas">
+      <div>
+        <h3>Inferência no cliente</h3>
+        <p>Quatro blocos, quatro cabeças, dimensão <span class="num">128</span>, janela de
+          <span class="num">128</span> tokens. A passada de um token custa cerca de
+          <span class="num">3</span> milissegundos, então o navegador entrega um token por quadro
+          e a molécula cresce na tela no ritmo em que o modelo decide. A saída foi conferida contra
+          o PyTorch, mesmo argmax e erro máximo de <span class="num">3,4e&#8209;3</span> nos logits,
+          que é o arredondamento do float16.</p>
+      </div>
+      <div>
+        <h3>Desenho sem biblioteca</h3>
+        <p>O SMILES é lido por um parser próprio e as posições saem de um relaxamento com mola nas
+          ligações e repulsão entre átomos não vizinhos. Um anel de molas iguais relaxa sozinho para
+          um polígono regular, então o benzeno fecha com desvio de comprimento de ligação
+          <span class="num">0,000</span>. Fórmula e massa molar conferem com a referência em cinco
+          fármacos conhecidos, imatinibe incluído.</p>
+      </div>
+      <div>
+        <h3>Dois números de validade</h3>
+        <p>A conferência daqui pega parênteses abertos, anel sem fechar, valência impossível e
+          aromático fora de anel. Ela não pega falha de kekulização, que é a maior classe de erro
+          do modelo, porque isso exige percepção de aromaticidade de verdade. Por isso o número do
+          navegador fica acima do número do RDKit, e os dois aparecem separados.</p>
+      </div>
+    </div>
+
+  </section>
+
+  <section class="conta env">
+    <h2>Os três modelos de triagem, e o que mediram</h2>
+    <p style="max-width:62ch;margin:14px 0 0;font-size:14px">Gerar uma molécula e saber se ela
+      presta são problemas diferentes. Estes três respondem, cada um mal à sua maneira, as três
+      perguntas que o gerador não responde. Todos leem a mesma impressão digital circular que o
+      navegador calcula, conferida bit a bit contra a versão em Python usada no treino, em 400
+      moléculas do ZINC.</p>
+    <!--TABELA_TRIAGEM-->
+
+    <h2 style="margin-top:46px">Afinidade, a tabela inteira</h2>
+    <p style="max-width:62ch;margin:14px 0 0;font-size:14px">Índice de concordância, três sementes
+      por célula. O split aleatório sorteia pares, então a mesma molécula e a mesma proteína
+      aparecem dos dois lados, e ele serve só de referência. Os outros três tiram isso. A coluna que
+      importa para molécula gerada é a de molécula nova.</p>
+    <!--TABELA_AFINIDADE-->
+    <p class="legenda">Duas leituras desfavoráveis à minha própria arquitetura. Em molécula nova, a
+      busca por semelhança de Tanimoto, que não tem treino nenhum, vence todas as redes. E a
+      vantagem da cabeça interativa sobre a aditiva, que é clara no split aleatório, desaparece
+      justamente quando a molécula é inédita, que é o caso de tudo que este gerador escreve. Tirando
+      os pares no piso de censura de 5,0, que são 69,6 por cento do Davis e não são medidas e sim
+      limite de ensaio, todos os modelos caem para a faixa de 0,55 a 0,64.</p>
+
+    <!--INI_GERADOR-->
+    <h2 style="margin-top:46px">Protocolo do gerador</h2>
+    <p style="max-width:62ch;margin:14px 0 0;font-size:14px">Cinco mil moléculas por temperatura,
+      semente fixa, mesmo checkpoint. Validade pelo RDKit, unicidade entre as válidas, novidade
+      contra as 249 mil moléculas do treino e diversidade interna por Tanimoto.</p>
+    <!--TABELA_GERADOR-->
+    <p class="legenda">A conferência que roda no navegador aceita mais do que o RDKit, porque ela
+      não enxerga falha de kekulização. A diferença entre as duas colunas de validade é o tamanho
+      dessa cegueira, e é por isso que as duas aparecem separadas aqui e na bancada.</p>
+    <!--FIM_GERADOR-->
+
+    <div class="limite">
+      <h3>O que isso ainda não é</h3>
+      <p>Este modelo escreve moléculas plausíveis. Ele não sabe se elas se ligam a alguma proteína,
+        não sabe se são sintetizáveis e não sabe se são seguras. Essas três perguntas são outros
+        modelos e outros dados.</p>
+      <p>Os três modelos de triagem acima respondem essas perguntas, e respondem mal. O de
+        sintetizabilidade é o único que eu chamaria de confiável, e ele só reproduz uma regra que
+        já existe. O de toxicologia acerta a ordem em cerca de sete de cada dez pares, em esqueletos
+        que nunca viu. O de afinidade, no regime que interessa aqui, que é molécula inédita, perde
+        para uma busca por semelhança sem treino nenhum.</p>
+      <p>Então a leitura certa da bancada é esta. O gerador escreve. A triagem ordena, mal, e serve
+        para descartar o obviamente ruim, não para apontar o bom. Nenhum número desta página é
+        evidência de que uma molécula se liga, de que ela é fabricável ou de que ela é segura. São
+        três filtros baratos rodando antes de qualquer coisa cara, que é exatamente o lugar deles.</p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="env pe">
+    <span>MolGPT, treinado em 243.455 SMILES do ZINC250k, com 6.000 moléculas inteiras separadas para validação.</span>
+    <span><a href="https://github.com/Samuelpedroso-dev/molgpt">github.com/Samuelpedroso-dev/molgpt</a></span>
+  </div>
+</footer>
+<script>/*__JS__*/</script>
