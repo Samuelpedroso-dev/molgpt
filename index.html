@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="MolGPT, um transformer de 819.328 parametros que escreve moleculas em SMILES e desenha a estrutura, rodando inteiro no navegador.">
+<meta name="description" content="MolGPT, um transformer de 819.328 parametros que escreve moleculas em SMILES no navegador, com tres modelos de triagem e as metricas medidas de cada um.">
 <style>
 :root{color-scheme:dark;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 body{margin:0;font:14px system-ui,sans-serif}
@@ -89,8 +89,9 @@ header{border-bottom:1px solid var(--linha);background:var(--preto)}
 .bancada{display:grid;grid-template-columns:1.55fr 1fr;gap:1px;background:var(--linha);
   border:1px solid var(--linha);margin-top:28px}
 @media (max-width:900px){.bancada{grid-template-columns:1fr}}
-.tela{position:relative;background:var(--preto);min-height:420px;aspect-ratio:4/3;max-width:100%}
-@media (max-width:900px){.tela{aspect-ratio:1/1;min-height:340px}}
+.tela{position:relative;background:var(--preto);min-height:560px;height:100%;
+  max-width:100%;min-width:0}
+@media (max-width:900px){.tela{aspect-ratio:1/1;height:auto;min-height:340px}}
 .tela canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 .selo{
   position:absolute;top:14px;left:14px;display:flex;align-items:center;gap:8px;
@@ -110,8 +111,9 @@ header{border-bottom:1px solid var(--linha);background:var(--preto)}
   color:var(--fraco);display:block;margin-bottom:6px}
 
 /* console */
-.console{background:var(--painel);padding:20px 18px;display:flex;flex-direction:column;gap:20px}
-.bloco{display:flex;flex-direction:column;gap:9px}
+.console{background:var(--painel);padding:20px 18px;display:flex;flex-direction:column;
+  gap:20px;min-width:0}
+.bloco{display:flex;flex-direction:column;gap:9px;min-width:0}
 .bloco .olho{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
 .bloco .olho b{color:var(--branco);font-family:var(--mono);letter-spacing:.02em;font-weight:500}
 input[type=range]{width:100%;accent-color:#ffffff;background:transparent;height:20px}
@@ -181,6 +183,39 @@ table.prop tr:last-child td{border-bottom:0}
 .limite h3{font-size:11px;letter-spacing:.22em;text-transform:uppercase;margin-bottom:10px}
 .limite p{margin:0 0 9px;font-size:14px;max-width:72ch}
 .limite p:last-child{margin-bottom:0}
+
+/* triagem */
+.tri{display:flex;flex-direction:column;gap:14px;min-width:0}
+.tlinha{display:flex;flex-direction:column;gap:6px;min-width:0}
+.tcab{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:11.5px}
+.tcab b{font-family:var(--mono);color:var(--branco);font-weight:500;font-variant-numeric:tabular-nums}
+.barra{position:relative;height:4px;background:#17191a;overflow:hidden}
+.barra i{position:absolute;left:0;top:0;bottom:0;background:var(--branco);width:0;
+  transition:width .45s cubic-bezier(.16,1,.3,1)}
+.barra u{position:absolute;top:-3px;bottom:-3px;width:1px;background:var(--linha2);text-decoration:none}
+.tnota{font-size:10.5px;color:var(--fraco);display:flex;justify-content:space-between;gap:8px}
+select{width:100%;max-width:100%;min-width:0;background:var(--preto);color:var(--branco);
+  border:1px solid var(--linha);font-family:var(--mono);font-size:12px;padding:8px 9px;
+  appearance:none;text-overflow:ellipsis}
+.dom{font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;padding:2px 6px;
+  border:1px solid var(--linha2);color:var(--cinza)}
+.dom.fora{color:#000;background:var(--cinza);border-color:var(--cinza)}
+
+/* tabelas de metodo */
+.rolagem{overflow-x:auto;margin-top:18px;border:1px solid var(--linha)}
+table.dados{width:100%;border-collapse:collapse;font-size:12.5px;min-width:520px}
+table.dados th,table.dados td{padding:9px 12px;text-align:right;border-bottom:1px solid var(--linha);
+  white-space:nowrap}
+table.dados td:last-child,table.dados th:last-child{white-space:normal;min-width:21ch;text-align:left}
+table.dados th:first-child,table.dados td:first-child{text-align:left}
+table.dados th{font-family:var(--disp);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--fraco);font-weight:500}
+table.dados td{font-family:var(--mono);color:var(--cinza);font-variant-numeric:tabular-nums}
+table.dados td:first-child{font-family:var(--disp);color:var(--cinza)}
+table.dados tr:last-child td{border-bottom:0}
+table.dados .forte td{color:var(--branco)}
+table.dados .venceu{color:var(--branco);font-weight:500}
+.legenda{font-size:12px;color:var(--fraco);margin-top:10px;max-width:72ch}
 footer{border-top:1px solid var(--linha);padding-block:26px 34px;font-size:12px}
 .pe{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:baseline}
 footer a{color:var(--branco);text-decoration:none;border-bottom:1px solid var(--linha2);padding-bottom:1px}
@@ -263,6 +298,32 @@ footer a:hover{border-color:var(--branco)}
         </div>
 
         <div class="vered" id="vered"><span class="bolha"></span><span id="v-motivo">Aguardando</span></div>
+
+        <div class="bloco">
+          <span class="olho">Triagem, três modelos <span class="dom" id="t-dom">domínio</span></span>
+          <div class="tri">
+
+            <div class="tlinha">
+              <div class="tcab"><span>Sintetizabilidade</span><b id="t-sas">&mdash;</b></div>
+              <div class="barra"><i id="t-sasb"></i><u id="t-sasz" style="left:50%"></u></div>
+              <div class="tnota"><span>1 fácil, 10 difícil</span><span id="t-sasn">traço, mediana do ZINC</span></div>
+            </div>
+
+            <div class="tlinha">
+              <div class="tcab"><span id="t-toxe">Alerta toxicológico</span><b id="t-tox">&mdash;</b></div>
+              <div class="barra"><i id="t-toxb"></i></div>
+              <div class="tnota"><span>Percentil contra o ZINC, ensaio mais alto</span><span id="t-toxn"></span></div>
+            </div>
+
+            <div class="tlinha">
+              <div class="tcab"><span>Afinidade prevista</span><b id="t-af">&mdash;</b></div>
+              <div class="barra"><i id="t-afb"></i></div>
+              <div class="tnota"><span id="t-afn">Percentil contra 2000 do ZINC no mesmo alvo</span><span id="t-afp"></span></div>
+              <select id="alvo" aria-label="Alvo do Davis"></select>
+            </div>
+
+          </div>
+        </div>
       </div>
     </div>
 
@@ -308,24 +369,62 @@ footer a:hover{border-color:var(--branco)}
       </div>
     </div>
 
+  </section>
+
+  <section class="conta env">
+    <h2>Os três modelos de triagem, e o que mediram</h2>
+    <p style="max-width:62ch;margin:14px 0 0;font-size:14px">Gerar uma molécula e saber se ela
+      presta são problemas diferentes. Estes três respondem, cada um mal à sua maneira, as três
+      perguntas que o gerador não responde. Todos leem a mesma impressão digital circular que o
+      navegador calcula, conferida bit a bit contra a versão em Python usada no treino, em 400
+      moléculas do ZINC.</p>
+    <div class="rolagem"><table class="dados"><thead><tr><th>Modelo</th><th>Dados</th><th>Medida em teste</th><th>Teste</th><th>Limite</th></tr></thead><tbody><tr><td>Sintetizabilidade</td><td>ZINC250k, 219 mil de treino</td><td>Spearman 0,9685</td><td>29.935 moléculas separadas</td><td>Só reproduz o sascorer do RDKit, não mede rota de síntese</td></tr><tr><td>Alerta toxicológico</td><td>Tox21, 12 ensaios</td><td>AUC médio 0,709</td><td>1.562 moléculas, esqueletos disjuntos</td><td>Pior ensaio 0,653, melhor 0,811</td></tr><tr><td>Afinidade</td><td>Davis, 68 moléculas por 442 quinases</td><td>CI 0,700 em molécula nova</td><td>5.746 pares, molécula nunca vista</td><td>Perde para Tanimoto sem treino, que faz 0,762</td></tr></tbody></table></div>
+
+    <h2 style="margin-top:46px">Afinidade, a tabela inteira</h2>
+    <p style="max-width:62ch;margin:14px 0 0;font-size:14px">Índice de concordância, três sementes
+      por célula. O split aleatório sorteia pares, então a mesma molécula e a mesma proteína
+      aparecem dos dois lados, e ele serve só de referência. Os outros três tiram isso. A coluna que
+      importa para molécula gerada é a de molécula nova.</p>
+    <div class="rolagem"><table class="dados"><thead><tr><th>Todos os pares</th><th>aleatório</th><th>molécula nova</th><th>proteína nova</th><th>os dois novos</th></tr></thead><tbody><tr><td>Média do treino</td><td>0,500</td><td>0,500</td><td>0,500</td><td>0,500</td></tr><tr><td>Vizinho Tanimoto</td><td>0,721</td><td class="venceu">0,762</td><td>0,500</td><td>0,500</td></tr><tr><td>Só ligante</td><td>0,750</td><td>0,605</td><td>0,752</td><td>0,599</td></tr><tr><td>Aditivo</td><td>0,788</td><td>0,697</td><td>0,771</td><td>0,661</td></tr><tr><td>Interativo</td><td class="venceu">0,819</td><td>0,700</td><td class="venceu">0,781</td><td class="venceu">0,663</td></tr></tbody></table></div><div class="rolagem"><table class="dados"><thead><tr><th>Só fora do piso de censura</th><th>aleatório</th><th>molécula nova</th><th>proteína nova</th><th>os dois novos</th></tr></thead><tbody><tr><td>Média do treino</td><td>0,500</td><td>0,500</td><td>0,500</td><td>0,500</td></tr><tr><td>Vizinho Tanimoto</td><td>0,607</td><td class="venceu">0,641</td><td>0,500</td><td>0,500</td></tr><tr><td>Só ligante</td><td>0,587</td><td>0,545</td><td>0,588</td><td>0,556</td></tr><tr><td>Aditivo</td><td>0,624</td><td>0,595</td><td>0,607</td><td class="venceu">0,584</td></tr><tr><td>Interativo</td><td class="venceu">0,640</td><td>0,599</td><td class="venceu">0,616</td><td>0,582</td></tr></tbody></table></div>
+    <p class="legenda">Duas leituras desfavoráveis à minha própria arquitetura. Em molécula nova, a
+      busca por semelhança de Tanimoto, que não tem treino nenhum, vence todas as redes. E a
+      vantagem da cabeça interativa sobre a aditiva, que é clara no split aleatório, desaparece
+      justamente quando a molécula é inédita, que é o caso de tudo que este gerador escreve. Tirando
+      os pares no piso de censura de 5,0, que são 69,6 por cento do Davis e não são medidas e sim
+      limite de ensaio, todos os modelos caem para a faixa de 0,55 a 0,64.</p>
+
+    <!--INI_GERADOR-->
+    <h2 style="margin-top:46px">Protocolo do gerador</h2>
+    <p style="max-width:62ch;margin:14px 0 0;font-size:14px">Cinco mil moléculas por temperatura,
+      semente fixa, mesmo checkpoint. Validade pelo RDKit, unicidade entre as válidas, novidade
+      contra as 249 mil moléculas do treino e diversidade interna por Tanimoto.</p>
+    <div class="rolagem"><table class="dados"><thead><tr><th>Temperatura</th><th>Validade RDKit</th><th>Validade navegador</th><th>Unicidade</th><th>Novidade</th><th>Diversidade</th></tr></thead><tbody><tr><td>0,60</td><td>92,4%</td><td>98,4%</td><td>100,0%</td><td>99,8%</td><td>0,830</td></tr><tr><td>0,70</td><td>88,5%</td><td>96,7%</td><td>99,9%</td><td>99,7%</td><td>0,847</td></tr><tr><td>0,80</td><td>83,4%</td><td>93,8%</td><td>99,9%</td><td>99,8%</td><td>0,859</td></tr><tr><td>0,90</td><td>77,0%</td><td>87,9%</td><td>99,9%</td><td>99,8%</td><td>0,870</td></tr><tr><td>1,00</td><td>69,5%</td><td>84,3%</td><td>100,0%</td><td>99,9%</td><td>0,880</td></tr></tbody></table></div>
+    <p class="legenda">A conferência que roda no navegador aceita mais do que o RDKit, porque ela
+      não enxerga falha de kekulização. A diferença entre as duas colunas de validade é o tamanho
+      dessa cegueira, e é por isso que as duas aparecem separadas aqui e na bancada.</p>
+    <!--FIM_GERADOR-->
+
     <div class="limite">
       <h3>O que isso ainda não é</h3>
       <p>Este modelo escreve moléculas plausíveis. Ele não sabe se elas se ligam a alguma proteína,
         não sabe se são sintetizáveis e não sabe se são seguras. Essas três perguntas são outros
         modelos e outros dados.</p>
-      <p>A medição que estamos fazendo em paralelo, no Davis, mostra onde está o gargalo real.
-        Sessenta e cinco a setenta e três por cento da variação de afinidade é específica do par
-        molécula mais proteína, e um modelo que apenas concatena as duas descrições empaca em
-        índice de concordância <span class="num">0,790</span>, mesmo recebendo a identidade exata
-        da proteína. O caminho não é trocar o descritor, é trocar a arquitetura para ela
-        representar a interação.</p>
+      <p>Os três modelos de triagem acima respondem essas perguntas, e respondem mal. O de
+        sintetizabilidade é o único que eu chamaria de confiável, e ele só reproduz uma regra que
+        já existe. O de toxicologia acerta a ordem em cerca de sete de cada dez pares, em esqueletos
+        que nunca viu. O de afinidade, no regime que interessa aqui, que é molécula inédita, perde
+        para uma busca por semelhança sem treino nenhum.</p>
+      <p>Então a leitura certa da bancada é esta. O gerador escreve. A triagem ordena, mal, e serve
+        para descartar o obviamente ruim, não para apontar o bom. Nenhum número desta página é
+        evidência de que uma molécula se liga, de que ela é fabricável ou de que ela é segura. São
+        três filtros baratos rodando antes de qualquer coisa cara, que é exatamente o lugar deles.</p>
     </div>
   </section>
 </main>
 
 <footer>
   <div class="env pe">
-    <span>MolGPT, treinado em SMILES do ChEMBL, checkpoint do passo 3000.</span>
+    <span>MolGPT, treinado em 243.455 SMILES do ZINC250k, com 6.000 moléculas inteiras separadas para validação.</span>
     <span><a href="https://github.com/Samuelpedroso-dev/molgpt">github.com/Samuelpedroso-dev/molgpt</a></span>
   </div>
 </footer>
@@ -654,6 +753,59 @@ function valida(s) {
   return { ok: true, motivo: "aceita" };
 }
 
+// a impressao digital usa o mesmo grafo e os mesmos hidrogenios do parser
+
+/*
+ * Impressao digital circular, a mesma do lado Python.
+ *
+ * Os tres modelos de triagem foram treinados com ESTES bits. Se a conta aqui
+ * divergir um bit da conta do treino, a previsao vira ruido, entao a
+ * aritmetica e de 32 bits dos dois lados e existe um teste que compara os
+ * dois em centenas de moleculas.
+ */
+const ELS = ["C", "N", "O", "S", "F", "Cl", "Br", "I", "P", "B"];
+
+function mix32(h, x) {
+  h = (h ^ (x >>> 0)) >>> 0;
+  h = Math.imul(h, 0x01000193) >>> 0;
+  h = (h ^ (h >>> 15)) >>> 0;
+  return h;
+}
+
+function invariante(a, hImpl, grau) {
+  const cod = ELS.indexOf(a.el) >= 0 ? ELS.indexOf(a.el) + 1 : 20;
+  let v = cod;
+  v = v * 8 + Math.min(grau, 7);
+  v = v * 8 + Math.min(hImpl, 7);
+  v = v * 8 + (a.carga >= -3 && a.carga <= 3 ? a.carga + 3 : 7);
+  v = v * 2 + (a.arom ? 1 : 0);
+  return v >>> 0;
+}
+
+function digital(atoms, bonds, nbits = 1024, raio = 2) {
+  const n = atoms.length;
+  const bits = new Float32Array(nbits);
+  if (!n) return bits;
+  const viz = atoms.map(() => []);
+  for (const b of bonds) { viz[b.a].push([b.b, b.o]); viz[b.b].push([b.a, b.o]); }
+  const hs = hidrogenios(atoms, bonds);
+  let ident = atoms.map((a, i) => invariante(a, hs[i], viz[i].length));
+  for (let i = 0; i < n; i++) bits[ident[i] % nbits] = 1;
+  for (let r = 0; r < raio; r++) {
+    const novo = new Array(n);
+    for (let i = 0; i < n; i++) {
+      const vz = viz[i].map(([j, o]) => [o, ident[j]])
+        .sort((p, q) => p[0] - q[0] || p[1] - q[1]);
+      let h = mix32(2166136261, ident[i]);
+      for (const [o, idj] of vz) { h = mix32(h, o); h = mix32(h, idj); }
+      novo[i] = h;
+    }
+    ident = novo;
+    for (let i = 0; i < n; i++) bits[ident[i] % nbits] = 1;
+  }
+  return bits;
+}
+
 /*
  * Motor de inferencia do MolGPT em JavaScript puro, sem biblioteca nenhuma.
  *
@@ -873,6 +1025,157 @@ async function carregar(baseUrl = "") {
   return new MolGPT(meta, decodeF16(bin));
 }
 
+/*
+ * Os tres modelos de triagem no navegador.
+ *
+ *   sintetizabilidade   destilado do sascorer do RDKit
+ *   alerta toxicologico 12 ensaios do Tox21
+ *   afinidade           Davis, 442 quinases, cabeca interativa
+ *
+ * Todos comem a MESMA impressao digital que o Python calculou no treino, o
+ * que esta conferido bit a bit. Cada numero sai acompanhado do quanto a
+ * molecula se parece com o que o modelo viu, porque previsao fora do
+ * dominio de treino nao e previsao, e chute com casas decimais.
+ */
+
+function geluT(x) {
+  // aproximacao por tangente hiperbolica, erro menor que 1e-3 e suficiente aqui
+  const c = 0.7978845608028654;
+  return 0.5 * x * (1 + Math.tanh(c * (x + 0.044715 * x * x * x)));
+}
+
+class Triagem {
+  constructor(meta, pesos) {
+    this.m = meta;
+    this.w = pesos;
+  }
+
+  t(nome) {
+    const e = this.m.mapa[nome];
+    const n = e.shape.reduce((a, b) => a * b, 1);
+    return { v: this.w.subarray(e.off, e.off + n), shape: e.shape };
+  }
+
+  /** Uma camada linear. W e [saida, entrada], na ordem do PyTorch. */
+  linear(x, nome) {
+    const W = this.t(nome + ".w"), b = this.t(nome + ".b");
+    const [nOut, nIn] = W.shape;
+    const out = new Float32Array(nOut);
+    for (let i = 0; i < nOut; i++) {
+      let s = b.v[i];
+      const base = i * nIn;
+      for (let j = 0; j < nIn; j++) s += W.v[base + j] * x[j];
+      out[i] = s;
+    }
+    return out;
+  }
+
+  mlp(x, prefixo, n) {
+    let h = x;
+    for (let k = 0; k < n; k++) {
+      h = this.linear(h, `${prefixo}.${k}`);
+      if (k < n - 1) for (let i = 0; i < h.length; i++) h[i] = geluT(h[i]);
+    }
+    return h;
+  }
+
+  sintetizabilidade(fp1024) {
+    return this.mlp(fp1024, "sas", this.m.sas.camadas)[0];
+  }
+
+  /** Devolve os 12 logits do Tox21, na ordem de meta.tox.ensaios. */
+  toxicologia(fpTox) {
+    return this.mlp(fpTox, "tox", this.m.tox.camadas);
+  }
+
+  /** Codifica a molecula uma vez, depois cada alvo custa so a cabeca. */
+  codifica(fp1024) {
+    return this.mlp(fp1024, "af_f", this.m.afinidade.camadas_f);
+  }
+
+  afinidade(u, alvo) {
+    const V = this.t("af_V");
+    const d = V.shape[1];
+    const x = new Float32Array(d * 3);
+    for (let i = 0; i < d; i++) {
+      const v = V.v[alvo * d + i];
+      x[i] = u[i]; x[d + i] = v; x[2 * d + i] = u[i] * v;
+    }
+    return this.mlp(x, "af_h", this.m.afinidade.camadas_h)[0];
+  }
+
+  /** Posicao do valor dentro dos quantis de referencia, de 0 a 100. */
+  percentil(q, valor) {
+    const qs = this.m.quantis;
+    if (valor <= q[0]) return 0;
+    if (valor >= q[q.length - 1]) return 100;
+    for (let i = 1; i < q.length; i++) {
+      if (valor <= q[i]) {
+        const f = (valor - q[i - 1]) / Math.max(1e-9, q[i] - q[i - 1]);
+        return qs[i - 1] + f * (qs[i] - qs[i - 1]);
+      }
+    }
+    return 100;
+  }
+
+  quantisAfinidade(alvo) {
+    const Q = this.t("q_afinidade");
+    const n = Q.shape[1];
+    return Q.v.subarray(alvo * n, alvo * n + n);
+  }
+
+  quantisTox(ensaio) {
+    const Q = this.t("q_tox");
+    const n = Q.shape[1];
+    return Q.v.subarray(ensaio * n, ensaio * n + n);
+  }
+
+  /**
+   * Dominio de aplicacao. Tanimoto maxima contra as 68 moleculas do Davis.
+   * O gerador escreve molecula tipo ZINC e o Davis e quase todo inibidor de
+   * quinase, entao esse numero costuma ser baixo, e e exatamente isso que
+   * o usuario precisa saber antes de acreditar na afinidade.
+   */
+  tanimotoDavis(fp1024) {
+    if (!this._davis) {
+      const bruto = atob(this.m.davis_bits_b64);
+      const bytes = 1024 / 8;
+      this._davis = [];
+      for (let i = 0; i < this.m.davis_n; i++) {
+        const u = new Uint8Array(bytes);
+        for (let k = 0; k < bytes; k++) u[k] = bruto.charCodeAt(i * bytes + k);
+        this._davis.push(u);
+      }
+    }
+    let melhor = 0;
+    let na = 0;
+    for (let i = 0; i < fp1024.length; i++) if (fp1024[i]) na++;
+    for (const u of this._davis) {
+      let comum = 0, nb = 0;
+      for (let k = 0; k < u.length; k++) {
+        let byte = u[k];
+        while (byte) { nb += byte & 1; byte >>= 1; }
+      }
+      for (let i = 0; i < fp1024.length; i++)
+        if (fp1024[i] && (u[i >> 3] >> (i & 7)) & 1) comum++;
+      const t = comum / Math.max(1, na + nb - comum);
+      if (t > melhor) melhor = t;
+    }
+    return melhor;
+  }
+}
+
+async function carregarTriagem(base = "") {
+  const [meta, txt] = await Promise.all([
+    fetch(base + "triagem.json").then(r => r.json()),
+    fetch(base + "triagem.b64.txt").then(r => r.text()),
+  ]);
+  const bruto = atob(txt.trim());
+  const u8 = new Uint8Array(bruto.length);
+  for (let i = 0; i < bruto.length; i++) u8[i] = bruto.charCodeAt(i);
+  return new Triagem(meta, decodeF16(u8.buffer));
+}
+
 /* ====== pagina, estado e desenho ====== */
 (function () {
   "use strict";
@@ -1043,10 +1346,71 @@ async function carregar(baseUrl = "") {
 
   /* ---- estado ---- */
   const E = {
-    modelo: null, gen: null, smiles: "", mol: null, nasc: [], novo: -1,
-    gerando: false, loop: true, temp: .8, faixa: 2,
+    modelo: null, tri: null, gen: null, smiles: "", mol: null, nasc: [], novo: -1,
+    gerando: false, loop: true, temp: .8, faixa: 2, alvo: 0,
     total: 0, aceitas: 0, msTok: [], proxTok: 0, fim: 0, ref: true,
   };
+
+  /* ---- triagem, os tres modelos ---- */
+  const pct = x => Math.max(0, Math.min(100, x));
+
+  function limpaTriagem() {
+    for (const id of ["t-sas", "t-tox", "t-af"]) $(id).textContent = "\u2014";
+    for (const id of ["t-sasb", "t-toxb", "t-afb"]) $(id).style.width = "0%";
+    $("t-dom").textContent = "\u2014";
+    $("t-dom").className = "dom";
+    $("t-afp").textContent = "";
+    $("t-toxn").textContent = "";
+  }
+
+  function rodaTriagem(mol) {
+    const T = E.tri;
+    if (!T || !mol || mol.atoms.length < 2) return;
+    const fp = digital(mol.atoms, mol.bonds, 1024);
+    const fpt = T.m.tox.nin === 1024 ? fp : digital(mol.atoms, mol.bonds, T.m.tox.nin);
+
+    // sintetizabilidade, escala de 1 a 10
+    const sas = T.sintetizabilidade(fp);
+    $("t-sas").textContent = sas.toFixed(2).replace(".", ",");
+    $("t-sasb").style.width = pct((sas - 1) / 9 * 100) + "%";
+    const med = T.m.sas.zinc.mediana;
+    $("t-sasz").style.left = pct((med - 1) / 9 * 100) + "%";
+    $("t-sasn").textContent = "traço, mediana do ZINC " + med.toFixed(2).replace(".", ",");
+
+    // toxicologia, o ensaio de percentil mais alto
+    const lg = T.toxicologia(fpt);
+    let melhor = 0, mp = -1;
+    for (let j = 0; j < lg.length; j++) {
+      const q = T.percentil(T.quantisTox(j), lg[j]);
+      if (q > mp) { mp = q; melhor = j; }
+    }
+    const ens = T.m.tox.ensaios[melhor];
+    $("t-toxe").textContent = "Alerta toxicológico, " + ens;
+    $("t-tox").textContent = mp.toFixed(0) + "\u00ba";
+    $("t-toxb").style.width = pct(mp) + "%";
+    const auc = (T.m.tox.auc_3_sementes || {})[ens];
+    $("t-toxn").textContent = auc ? "AUC deste ensaio " + auc.toFixed(3).replace(".", ",") : "";
+
+    // afinidade, com dominio de aplicacao
+    E.u = T.codifica(fp);
+    E.fp = fp;
+    pintaAfinidade();
+  }
+
+  function pintaAfinidade() {
+    const T = E.tri;
+    if (!T || !E.u) return;
+    const pk = T.afinidade(E.u, E.alvo);
+    const q = T.percentil(T.quantisAfinidade(E.alvo), pk);
+    $("t-af").textContent = q.toFixed(0) + "\u00ba";
+    $("t-afb").style.width = pct(q) + "%";
+    $("t-afp").textContent = "pKd " + pk.toFixed(2).replace(".", ",");
+    const tan = T.tanimotoDavis(E.fp);
+    const fora = tan < 0.3;
+    $("t-dom").textContent = "Tanimoto " + tan.toFixed(2).replace(".", ",") +
+      (fora ? ", fora do domínio" : ", dentro");
+    $("t-dom").className = "dom" + (fora ? " fora" : "");
+  }
 
   function propsNaTela(mol, parcial) {
     if (!mol || !mol.atoms.length) return;
@@ -1114,6 +1478,7 @@ async function carregar(baseUrl = "") {
     propsNaTela(E.mol);
     const v = valida(g.smiles);
     veredito(v.ok ? "Aceita na conferência" : "Rejeitada, " + v.motivo, v.ok);
+    rodaTriagem(E.mol);
   }
 
   /* ---- ciclo de geracao ---- */
@@ -1125,6 +1490,7 @@ async function carregar(baseUrl = "") {
     $("saida").textContent = "";
     $("cursor").style.display = "";
     $("estado").textContent = "Gerando ao vivo";
+    limpaTriagem();
     document.querySelector(".fita .rot").textContent = "SMILES, saída bruta do modelo";
     veredito("Escrevendo", null);
   }
@@ -1146,6 +1512,7 @@ async function carregar(baseUrl = "") {
       veredito(v.ok ? "Aceita na conferência" : "Rejeitada, " + v.motivo, v.ok);
       $("estado").textContent = v.ok ? "Aceita" : "Rejeitada";
       propsNaTela(E.mol);
+      if (v.ok) rodaTriagem(E.mol); else limpaTriagem();
       medidas();
       if (v.ok && E.mol.atoms.length > 2) guarda(E.mol, E.smiles);
       E.fim = agora;
@@ -1270,6 +1637,28 @@ async function carregar(baseUrl = "") {
       const vm = meta.validade_medida && meta.validade_medida[E.temp.toFixed(1)];
       if (vm) $("m-rdkit").textContent = (100 * vm).toFixed(1).replace(".", ",") + "%";
       comeca();
+
+      // os tres modelos de triagem chegam depois, a bancada ja esta rodando
+      try {
+        const [tm, ttxt] = await Promise.all([
+          fetch("triagem.json").then(r => { if (!r.ok) throw new Error("triagem " + r.status); return r.json(); }),
+          fetch("triagem.b64.txt").then(r => { if (!r.ok) throw new Error("pesos da triagem " + r.status); return r.text(); }),
+        ]);
+        E.tri = new Triagem(tm, decodeF16(deBase64(ttxt)));
+        const sel = $("alvo");
+        tm.afinidade.proteinas.forEach((nome, i) => {
+          const o = document.createElement("option");
+          o.value = i; o.textContent = nome;
+          sel.appendChild(o);
+        });
+        const abl = tm.afinidade.proteinas.findIndex(n => n.startsWith("ABL1"));
+        E.alvo = abl >= 0 ? abl : 0;
+        sel.value = String(E.alvo);
+        sel.addEventListener("change", e => { E.alvo = +e.target.value; pintaAfinidade(); });
+        if (E.mol) rodaTriagem(E.mol);
+      } catch (e2) {
+        $("t-dom").textContent = "triagem fora, " + e2.message;
+      }
     } catch (err) {
       $("estado").textContent = "Pesos não carregaram";
       $("ponto").style.animation = "none";
